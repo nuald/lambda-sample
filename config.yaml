@@ -1,0 +1,17 @@
+mqtt:
+  broker: tcp://localhost:1883
+  topic: sensors/power
+  salt: 7cdbb4dc4887f0a86b537fc7ebf89e44
+  sensors:
+    - sensor 1
+    - sensor 2
+    - sensor 3
+
+cassandra:
+  address: localhost
+  keyspace: sandbox
+  table: entry
+
+logger:
+  name: sandbox
+  debug: true
