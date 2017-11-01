@@ -11,6 +11,10 @@ Please install:
  - [Apache Spark](https://spark.apache.org/) data processing engine
  - [SBT](http://www.scala-sbt.org/) build tool
 
+Configure the Cassandra data store:
+
+    $ cqlsh -f resources/cql/schema.cql
+
 ## IoT Emulation
 
 Run the MQTT server (Mosquitto):
@@ -31,10 +35,6 @@ Run Cassandra:
 
     $ cassandra -f
 
-Configure the data store:
-
-    $ cqlsh -f resources/cql/schema.cql
-
 Subscribe to the required MQTT topic and put the messages into the Cassandra data store:
 
     $ sbt "runMain mqtt.Consumer"
@@ -43,6 +43,6 @@ Verify the data store with the CQL:
 
     $ cqlsh -k sandbox -e "select * from entry limit 10;"
 
-Verify the data store with the (dashboard)[http://localhost:8080]:
+Verify the data store with the [dashboard](http://localhost:8080):
 
     $ sbt "runMain dashboard.WebServer"
