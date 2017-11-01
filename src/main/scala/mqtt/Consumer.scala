@@ -5,6 +5,7 @@ import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
+import scala.io.StdIn
 
 object Consumer extends App {
   val conf = Config.get
@@ -53,7 +54,7 @@ object Consumer extends App {
 
         client.setCallback(callback)
         logger.info("Press <Enter> to exit")
-        System.in.read()
+        StdIn.readLine()
       }
     }
   }

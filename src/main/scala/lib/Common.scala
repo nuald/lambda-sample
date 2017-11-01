@@ -10,8 +10,7 @@ package object lib {
       Success(doWork(resource))
     } catch {
       case e: Exception => Failure(e)
-    }
-    finally {
+    } finally {
       try {
         if (resource != null) {
           cleanup(resource)

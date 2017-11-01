@@ -14,4 +14,8 @@ cassandra:
 
 logger:
   name: sandbox
-  debug: true
+  debug: false
+
+dashboard:
+  address: localhost
+  port: 8080

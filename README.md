@@ -33,8 +33,16 @@ Run Cassandra:
 
 Configure the data store:
 
-    $ cqlsh -f cql/schema.cql
+    $ cqlsh -f resources/cql/schema.cql
 
 Subscribe to the required MQTT topic and put the messages into the Cassandra data store:
 
     $ sbt "runMain mqtt.Consumer"
+
+Verify the data store with the CQL:
+
+    $ cqlsh -k sandbox -e "select * from entry limit 10;"
+
+Verify the data store with the (dashboard)[http://localhost:8080]:
+
+    $ sbt "runMain dashboard.WebServer"

@@ -4,6 +4,7 @@ import ammonite.ops._
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.Constructor
 import scala.beans.BeanProperty
+import scala.util._
 
 class MqttConfig {
   @BeanProperty var broker = ""
@@ -23,15 +24,21 @@ class LoggerConfig {
   @BeanProperty var debug = false
 }
 
+class DashboardConfig {
+  @BeanProperty var address = ""
+  @BeanProperty var port = 8080
+}
+
 class Config {
   @BeanProperty var mqtt = new MqttConfig
   @BeanProperty var cassandra = new CassandraConfig
   @BeanProperty var logger = new LoggerConfig
+  @BeanProperty var dashboard = new DashboardConfig
 }
 
 object Config {
   def get: Config = {
-    val file = pwd / "config.yaml"
+    val file = pwd / 'resources / "config.yaml"
     val yaml = new Yaml(new Constructor(classOf[Config]))
     yaml.load(read! file).asInstanceOf[Config]
   }

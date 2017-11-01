@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Dashboard</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+  </head>
+  <body>
+    <h1>Dashboard</h1>
+    <div class="container">
+      <div class="jumbotron">
+        <svg id="visualisation" width="1000" height="500"></svg>
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+        <script>
+          $.getJSON("mqtt", function(data) {
+            var vis = d3.select("#visualisation"),
+              WIDTH = 1000,
+              HEIGHT = 500,
+              MARGINS = {
+                top: 20,
+                right: 20,
+                bottom: 20,
+                left: 50
+              },
+              xScale = d3.scaleLinear().range([MARGINS.left, WIDTH - MARGINS.right])
+                .domain([d3.min(data, function(d) {
+                  return d.ts;
+                }), d3.max(data, function(d) {
+                  return d.ts;
+                })]),
+              yScale = d3.scaleLinear().range([HEIGHT - MARGINS.top, MARGINS.bottom])
+                .domain([d3.min(data, function(d) {
+                  return d.value;
+                }), d3.max(data, function(d) {
+                  return d.value;
+                })]),
+              xAxis = d3.axisBottom(xScale),
+              yAxis = d3.axisLeft(yScale);
+
+            vis.append("svg:g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+              .call(xAxis);
+            vis.append("svg:g")
+              .attr("class", "y axis")
+              .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+              .call(yAxis);
+
+            var lineGen = d3.line()
+              .x(function(d) {
+                return xScale(d.ts);
+              })
+              .y(function(d) {
+                return yScale(d.value);
+              })
+              .curve(d3.curveLinear);
+
+            var dataGroup = d3.nest()
+              .key(function(d) {
+                return d.sensor;
+              })
+              .entries(data);
+
+            dataGroup.forEach(function(d, i) {
+              vis.append('svg:path')
+                .attr('d', lineGen(d.values))
+                .attr('stroke', function(d, j) {
+                  return "hsl(" + Math.random() * 360 + ",100%,50%)";
+                })
+                .attr('stroke-width', 2)
+                .attr('fill', 'none');
+            });
+          });
+        </script>
+      </div>
+    </div>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+  </body>
+</html>
