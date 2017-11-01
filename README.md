@@ -17,7 +17,7 @@ Configure the Cassandra data store:
 
 ## IoT Emulation
 
-Run the MQTT server (Mosquitto):
+Run the MQTT server:
 
     $ mosquitto
 
@@ -25,9 +25,9 @@ Generate the messages:
 
     $ sbt "runMain mqtt.Producer"
 
-Verify the messages by a subscription to the required MQTT topic:
+Verify the messages by subscribing to the required MQTT topic:
 
-   $ mosquitto_sub -t sensors/power
+    $ mosquitto_sub -t sensors/power
 
 ## Processing Cluster
 
@@ -39,7 +39,7 @@ Subscribe to the required MQTT topic and put the messages into the Cassandra dat
 
     $ sbt "runMain mqtt.Consumer"
 
-Verify the data store with the CQL:
+Verify the data store using CQL:
 
     $ cqlsh -k sandbox -e "select * from entry limit 10;"
 
