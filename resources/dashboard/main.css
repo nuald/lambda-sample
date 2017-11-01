@@ -1,0 +1,18 @@
+.axis path {
+  fill: none;
+  stroke: #777;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  font-family: Lato;
+  font-size: 13px;
+}
+
+.legend {
+  font-size: 14px;
+}
+
+rect {
+  stroke-width: 2;
+}

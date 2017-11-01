@@ -10,6 +10,8 @@ class MqttConfig {
   @BeanProperty var broker = ""
   @BeanProperty var topic = ""
   @BeanProperty var salt = ""
+  @BeanProperty var bound = 100
+  @BeanProperty var timeout = 200
   @BeanProperty var sensors = new java.util.ArrayList[String]()
 }
 
@@ -27,6 +29,7 @@ class LoggerConfig {
 class DashboardConfig {
   @BeanProperty var address = ""
   @BeanProperty var port = 8080
+  @BeanProperty var limit = 100
 }
 
 class Config {

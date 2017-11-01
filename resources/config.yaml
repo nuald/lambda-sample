@@ -2,10 +2,13 @@ mqtt:
   broker: tcp://localhost:1883
   topic: sensors/power
   salt: 7cdbb4dc4887f0a86b537fc7ebf89e44
+  bound: 100
+  timeout: 200
   sensors:
-    - sensor 1
-    - sensor 2
-    - sensor 3
+    - Warehouse 13
+    - The Forsaken Inn
+    - Old Mill
+    - Motel 6
 
 cassandra:
   address: localhost
@@ -19,3 +22,4 @@ logger:
 dashboard:
   address: localhost
   port: 8080
+  limit: 200
