@@ -1,8 +1,10 @@
 package lib
 
 import ammonite.ops._
+
 import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.constructor.Constructor
+
 import scala.beans.BeanProperty
 import scala.util._
 

@@ -9,6 +9,15 @@ $(function () {
     "hsl(30,  100%, 50%)" : null,
     "hsl(120, 100%, 20%)" : null
   };
+  var margins = {
+    top: 50,
+    right: 20,
+    bottom: 50,
+    left: 50
+  };
+  var legendRectSize = 18;
+  var legendSpacing = 4;
+
   var colorMap = {};
 
   function getColor(key) {
@@ -24,63 +33,61 @@ $(function () {
     return colorMap[key];
   }
 
+  var vis = d3.select("#visualisation"),
+    width = vis.attr('width'),
+    height = vis.attr('height');
+
   function render() {
-    $.getJSON("mqtt", function(data) {
-      var vis = d3.select("#visualisation"),
-        WIDTH = 1000,
-        HEIGHT = 500,
-        MARGINS = {
-          top: 50,
-          right: 20,
-          bottom: 50,
-          left: 50
-        },
-        xScale = d3.scaleLinear().range([MARGINS.left, WIDTH - MARGINS.right])
+    d3.json("mqtt").get(function(error, data) {
+      if (error) {
+        throw error;
+      }
+
+      var xScale = d3.scaleLinear().range([margins.left, width - margins.right])
           .domain([d3.min(data, function(d) {
             return d.ts;
           }), d3.max(data, function(d) {
             return d.ts;
           })]),
-        yScale = d3.scaleLinear().range([HEIGHT - MARGINS.top, MARGINS.bottom])
+        yScale = d3.scaleLinear().range([height - margins.top, margins.bottom])
           .domain([d3.min(data, function(d) {
             return d.value;
           }), d3.max(data, function(d) {
             return d.value;
           })]),
         xAxis = d3.axisBottom(xScale),
-        yAxis = d3.axisLeft(yScale);
+        yAxis = d3.axisLeft(yScale),
+        lineGen = d3.line()
+          .x(function(d) {
+            return xScale(d.ts);
+          })
+          .y(function(d) {
+            return yScale(d.value);
+          })
+          .curve(d3.curveLinear),
+        dataGroup = d3.nest()
+          .key(function(d) {
+            return d.sensor;
+          })
+          .entries(data),
+        lSpace = width / dataGroup.length;
 
-      vis.append("svg:g")
+      vis.selectAll('.graph, .legend, .axis').remove();
+
+      vis.append("g")
         .attr("class", "x axis")
-        .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+        .attr("transform", "translate(0," + (height - margins.bottom) + ")")
         .call(xAxis);
-      vis.append("svg:g")
+      vis.append("g")
         .attr("class", "y axis")
-        .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+        .attr("transform", "translate(" + (margins.left) + ",0)")
         .call(yAxis);
-
-      var lineGen = d3.line()
-        .x(function(d) {
-          return xScale(d.ts);
-        })
-        .y(function(d) {
-          return yScale(d.value);
-        })
-        .curve(d3.curveLinear);
-
-      var dataGroup = d3.nest()
-        .key(function(d) {
-          return d.sensor;
-        })
-        .entries(data);
-
-      var lSpace = WIDTH / dataGroup.length;
-      var legendRectSize = 18;
-      var legendSpacing = 4;
 
       dataGroup.forEach(function(d, i) {
         var color = getColor(d.key);
-        vis.append('svg:path')
+
+        vis.append('path')
+          .attr('class', 'graph')
           .attr('d', lineGen(d.values))
           .attr('stroke', color)
           .attr('stroke-width', 2)
@@ -89,12 +96,8 @@ $(function () {
         var legend = vis.append('g')
           .attr('class', 'legend')
           .attr('transform', function() {
-            var height = legendRectSize + legendSpacing;
-            var offset =  height * dataGroup.length / 2;
-            // var horz = -2 * legendRectSize;
-            // var vert = i * height - offset;
             var horz = (lSpace / 2) + i * lSpace;
-            var vert = HEIGHT - legendRectSize;
+            var vert = height - legendRectSize;
             return 'translate(' + horz + ',' + vert + ')';
           });
         legend.append('rect')
@@ -106,16 +109,11 @@ $(function () {
           .attr('x', legendRectSize + legendSpacing)
           .attr('y', legendRectSize - legendSpacing)
           .text(d.key);
-        // vis.append("text")
-        //   .attr("x", (lSpace / 2) + i * lSpace)
-        //   .attr("y", HEIGHT)
-        //   .style("fill", color)
-        //   .attr("class", "legend")
-        //   .text(d.key);
       });
     });
   }
 
-  // setInterval(render, 1000);
-  render();
+  d3.interval(function() {
+    render();
+  }, 1000);
 });

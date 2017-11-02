@@ -6,17 +6,21 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
+
 import ammonite.ops._
+
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import ContentTypeResolver.Default
-import lib._
+
 import scala.collection.JavaConverters._
 import scala.io.StdIn
 import scala.util._
+
+import ContentTypeResolver.Default
+import lib._
 
 case class Entry(sensor: String, ts: java.util.Date, value: Int)
 

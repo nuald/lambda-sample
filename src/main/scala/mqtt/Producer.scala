@@ -1,9 +1,11 @@
 package mqtt
 
-import lib._
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
+
 import scala.collection.JavaConverters._
+
+import lib._
 
 object Producer extends App {
   val conf = Config.get

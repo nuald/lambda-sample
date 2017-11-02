@@ -3,6 +3,7 @@ package object lib {
   import org.slf4j.Logger
   import org.slf4j.LoggerFactory
   import org.slf4j.impl.SimpleLogger
+
   import scala.util._
 
   def using[A, B](resource: A)(cleanup: A => Unit)(doWork: A => B)(implicit logger: Logger): Try[B] = {

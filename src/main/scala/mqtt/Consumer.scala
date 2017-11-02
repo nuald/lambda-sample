@@ -1,11 +1,14 @@
 package mqtt
 
-import lib._
-import com.datastax.driver.core.Cluster
-import com.datastax.driver.core.querybuilder.QueryBuilder
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
+
+import com.datastax.driver.core.Cluster
+import com.datastax.driver.core.querybuilder.QueryBuilder
+
 import scala.io.StdIn
+
+import lib._
 
 object Consumer extends App {
   val conf = Config.get
