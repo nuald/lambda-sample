@@ -22,8 +22,8 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Consumer._
 
-  implicit private val system = context.system
-  implicit private val executionContext = system.dispatcher
+  implicit val system = context.system
+  implicit val executionContext = system.dispatcher
 
   val conf = Config.get
   val session = cluster.connect(conf.cassandra.keyspace)

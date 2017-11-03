@@ -7,30 +7,36 @@ import com.typesafe.config.ConfigBeanFactory
 import scala.beans.BeanProperty
 
 class MqttConfig {
-  @BeanProperty var broker: String = ""
-  @BeanProperty var topic: String = ""
-  @BeanProperty var salt: String = ""
-  @BeanProperty var bound: Int = 100
-  @BeanProperty var timeout: Int = 200
+  @BeanProperty var broker = ""
+  @BeanProperty var topic = ""
+  @BeanProperty var salt = ""
+  @BeanProperty var bound = 100
+  @BeanProperty var timeout = 200
   @BeanProperty var sensors: java.util.List[String] = new java.util.ArrayList[String]()
 }
 
 class CassandraConfig {
-  @BeanProperty var address: String = ""
-  @BeanProperty var keyspace: String = ""
-  @BeanProperty var table: String = ""
+  @BeanProperty var address = ""
+  @BeanProperty var keyspace = ""
+  @BeanProperty var table = ""
 }
 
 class DashboardConfig {
-  @BeanProperty var address: String = ""
-  @BeanProperty var port: Int = 8080
-  @BeanProperty var limit: Int = 100
+  @BeanProperty var address = ""
+  @BeanProperty var port = 8080
+  @BeanProperty var limit = 100
+}
+
+class ProducerConfig {
+  @BeanProperty var address = ""
+  @BeanProperty var port = 8081
 }
 
 class Config {
-  @BeanProperty var mqtt: MqttConfig = new MqttConfig
-  @BeanProperty var cassandra: CassandraConfig = new CassandraConfig
-  @BeanProperty var dashboard: DashboardConfig = new DashboardConfig
+  @BeanProperty var mqtt = new MqttConfig
+  @BeanProperty var cassandra = new CassandraConfig
+  @BeanProperty var dashboard = new DashboardConfig
+  @BeanProperty var producer = new ProducerConfig
 }
 
 object Config {

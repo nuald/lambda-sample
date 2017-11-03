@@ -2,7 +2,8 @@ package dashboard
 
 import akka.actor._
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
+import akka.http.scaladsl.server.directives._
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 
@@ -27,8 +28,8 @@ object Dashboard {
 class Dashboard(cluster: Cluster)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
-  implicit private val system = context.system
-  implicit private val executionContext = system.dispatcher
+  implicit val system = context.system
+  implicit val executionContext = system.dispatcher
 
   val conf = Config.get
   val session = cluster.connect(conf.cassandra.keyspace)
@@ -65,7 +66,7 @@ class Dashboard(cluster: Cluster)(implicit materializer: ActorMaterializer)
     route,
     conf.dashboard.address,
     conf.dashboard.port,
-    "dashboard/index.html",
+    Some("dashboard/index.html"),
     self
   )
 

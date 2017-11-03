@@ -18,6 +18,7 @@ lazy val root = (project in file(".")).
       "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.0",
       "com.typesafe.akka" %% "akka-http" % "10.0.10",
       "com.typesafe.akka" %% "akka-slf4j" % "2.4.19",
+      "org.clapper" %% "scalasti" % "3.0.1",
       "org.eclipse.paho" % "mqtt-client" % "0.4.0",
     ),
     resolvers += "MQTT Repository" at "https://repo.eclipse.org/content/repositories/paho-releases/"
