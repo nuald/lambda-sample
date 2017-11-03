@@ -38,6 +38,4 @@ Verify the data store using CQL:
 
     $ cqlsh -k sandbox -e "select * from entry limit 10;"
 
-Verify the data store with the [dashboard](http://localhost:8080):
-
-    $ sbt "runMain dashboard.WebServer"
+Verify the data store with the Dashboard: http://localhost:8080
