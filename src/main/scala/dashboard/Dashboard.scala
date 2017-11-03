@@ -60,7 +60,6 @@ class Dashboard(cluster: Cluster)(implicit materializer: ActorMaterializer)
       }
     }
 
-  // TODO: remove var
   var httpBinding: Option[ServerBinding] = None
   val client = HttpClient(
     route,
@@ -82,7 +81,6 @@ class Dashboard(cluster: Cluster)(implicit materializer: ActorMaterializer)
     case Connected(binding) =>
       httpBinding = Some(binding)
     case ConnectionFailure(ex) =>
-      // TODO: correctly handle the error
       log.error(s"Failed to establish HTTP connection $ex")
   }
 }
