@@ -27,18 +27,16 @@ class Producer()(implicit materializer: ActorMaterializer)
 
   val conf = Config.get
 
-  val broker = conf.mqtt.broker
   val id = MqttClient.generateClientId
   val persistence = new MemoryPersistence
-  val sensors = conf.mqtt.sensors
-  val bound = conf.mqtt.bound
   val factory = new EntryFactory(conf.mqtt.salt)
-  val client = new MqttClient(broker, id, persistence)
+  val client = new MqttClient(conf.mqtt.broker, id, persistence)
 
   client.connect()
   val msgTopic = client.getTopic(conf.mqtt.topic)
 
   val r = scala.util.Random
+  val bound = conf.mqtt.bound
   val offsetStep = bound
 
   override def postStop() = {
@@ -48,7 +46,7 @@ class Producer()(implicit materializer: ActorMaterializer)
   override def receive: Receive = {
     case Publish =>
       var offset = 0
-      for (sensor <- sensors.asScala) {
+      for (sensor <- conf.mqtt.sensors.asScala) {
         val value = offset + r.nextInt(bound)
         val entry = factory.create(sensor, value)
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))

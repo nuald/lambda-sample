@@ -9,8 +9,6 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 
-import scala.io.StdIn
-
 import lib._
 
 object Consumer {
@@ -28,21 +26,17 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   implicit private val executionContext = system.dispatcher
 
   val conf = Config.get
-  val keyspace = conf.cassandra.keyspace
-  val table = conf.cassandra.table
+  val session = cluster.connect(conf.cassandra.keyspace)
 
-  val session = cluster.connect(keyspace)
-
-  val broker = conf.mqtt.broker
   val id = MqttClient.generateClientId
   val persistence = new MemoryPersistence
   val factory = new EntryFactory(conf.mqtt.salt)
-  val client = new MqttClient(broker, id, persistence)
+  val client = new MqttClient(conf.mqtt.broker, id, persistence)
 
   client.connect()
   client.subscribe(conf.mqtt.topic)
 
-  val callback = new MqttCallback {
+  client.setCallback(new MqttCallback {
     override def messageArrived(topic: String, message: MqttMessage): Unit = {
       self ! Arrived(message)
     }
@@ -53,9 +47,7 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
 
     override def deliveryComplete(token: IMqttDeliveryToken): Unit = {
     }
-  }
-
-  client.setCallback(callback)
+  })
 
   override def postStop() = {
     client.disconnect
@@ -68,7 +60,7 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
       try {
         val entry = factory.get(message.getPayload)
 
-        val statement = QueryBuilder.update(table)
+        val statement = QueryBuilder.update(conf.cassandra.table)
           .`with`(QueryBuilder.set("value", Integer.valueOf(entry.value)))
           .where(QueryBuilder.eq("sensor", entry.sensor))
           .and(QueryBuilder.eq("ts", System.currentTimeMillis))

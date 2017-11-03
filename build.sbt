@@ -15,12 +15,8 @@ lazy val root = (project in file(".")).
       "com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.1",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.1",
       "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.0",
-      "com.lihaoyi" %% "ammonite-ops" % "1.0.3",
       "com.typesafe.akka" %% "akka-http" % "10.0.10",
       "org.eclipse.paho" % "mqtt-client" % "0.4.0",
-      "org.slf4j" % "slf4j-api" % "1.7.5",
-      "org.slf4j" % "slf4j-simple" % "1.7.5",
-      "org.yaml" % "snakeyaml" % "1.19",
     ),
     resolvers += "MQTT Repository" at "https://repo.eclipse.org/content/repositories/paho-releases/"
   )
