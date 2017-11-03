@@ -11,33 +11,28 @@ Please install:
  - [Apache Spark](https://spark.apache.org/) data processing engine
  - [SBT](http://www.scala-sbt.org/) build tool
 
+## Usage
+
 Configure the Cassandra data store:
 
     $ cqlsh -f resources/cql/schema.cql
 
-## IoT Emulation
-
-Run the MQTT server:
+Run the servers:
 
     $ mosquitto
+    $ cassandra -f
 
-Generate the messages:
+Run the system (for the convenience, all the microservices are packaged into one system):
 
-    $ sbt "runMain mqtt.Producer"
+    $ sbt run
+
+### IoT Emulation
 
 Verify the messages by subscribing to the required MQTT topic:
 
     $ mosquitto_sub -t sensors/power
 
-## Processing Cluster
-
-Run Cassandra:
-
-    $ cassandra -f
-
-Subscribe to the required MQTT topic and put the messages into the Cassandra data store:
-
-    $ sbt "runMain mqtt.Consumer"
+### Processing Cluster
 
 Verify the data store using CQL:
 

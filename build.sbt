@@ -8,6 +8,7 @@ lazy val root = (project in file(".")).
       version      := "0.1.0-SNAPSHOT"
     )),
     name := "Sandbox",
+    scalacOptions ++= Seq("-deprecation", "-feature"),
     libraryDependencies ++= Seq(
       scalaTest % Test,
       "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.1",
