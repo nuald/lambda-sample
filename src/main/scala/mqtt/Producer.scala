@@ -44,12 +44,22 @@ class Producer()(implicit materializer: ActorMaterializer)
   val r = scala.util.Random
   val bound = conf.mqtt.bound
   val offsetStep = bound
+  val sensors = conf.mqtt.sensors.asScala
+  var state = sensors.map(k => (k, "normal")).toMap
 
   val route =
+    path("update") {
+      post {
+        formFieldMap { fields =>
+          state = fields
+          complete("OK")
+        }
+      }
+    } ~
     pathSingleSlash {
       get {
         val src = Source.fromFile("resources/producer/index.html").mkString
-        val template = ST(src, '$', '$').add("sensors", conf.mqtt.sensors.asScala)
+        val template = ST(src, '$', '$').add("sensors", sensors)
         template.render() match {
           case Success(dst) =>
             complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))
@@ -78,8 +88,11 @@ class Producer()(implicit materializer: ActorMaterializer)
   override def receive: Receive = {
     case Publish =>
       var offset = 0
-      for (sensor <- conf.mqtt.sensors.asScala) {
-        val value = offset + r.nextInt(bound)
+      for (sensor <- sensors) {
+        val value = state(sensor) match {
+          case "normal" => offset + r.nextInt(bound)
+          case "anomaly" => offset + 4 * bound / 5 + r.nextInt(bound / 5)
+        }
         val entry = factory.create(sensor, value)
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))
 
