@@ -89,11 +89,12 @@ class Producer()(implicit materializer: ActorMaterializer)
     case Publish =>
       var offset = 0
       for (sensor <- sensors) {
-        val value = state(sensor) match {
+        val sensorState = state(sensor)
+        val value = sensorState match {
           case "normal" => offset + r.nextInt(bound)
           case "anomaly" => offset + 4 * bound / 5 + r.nextInt(bound / 5)
         }
-        val entry = factory.create(sensor, value)
+        val entry = factory.create(sensor, value, sensorState == "anomaly")
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))
 
         val messageId = token.getMessageId()

@@ -17,6 +17,10 @@ Configure the Cassandra data store:
 
     $ cqlsh -f resources/cql/schema.cql
 
+NOTE: To drop the keyspace if necessary, please use:
+
+    $ cqlsh -e "drop keyspace sandbox;"
+
 Run the servers:
 
     $ mosquitto
