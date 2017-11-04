@@ -17,9 +17,7 @@ Configure the Cassandra data store:
 
     $ cqlsh -f resources/cql/schema.cql
 
-NOTE: To drop the keyspace if necessary, please use:
-
-    $ cqlsh -e "drop keyspace sandbox;"
+*NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`*
 
 Run the servers:
 
@@ -31,6 +29,8 @@ Run the system (for the convenience, all the microservices are packaged into one
     $ sbt run
 
 ### IoT Emulation
+
+Modify the sensor values with the Producer: http://localhost:8081
 
 Verify the messages by subscribing to the required MQTT topic:
 
