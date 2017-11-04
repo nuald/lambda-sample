@@ -18,16 +18,16 @@ case class Entry(sensor: String, value: Int, anomaly: Boolean, signature: Array[
 
 class EntryFactory(salt: String) {
   val HmacAlgorithm = "HmacSHA256"
-
   val secret = new SecretKeySpec(salt.getBytes, HmacAlgorithm)
-  val mac = Mac.getInstance(HmacAlgorithm)
+
+  private val mac = Mac.getInstance(HmacAlgorithm)
   mac.init(secret)
 
   val mapper = new ObjectMapper(new SmileFactory) with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
   def getSignature(sensor: String, value: Int, anomaly: Boolean): Array[Byte] = {
-    mac.reset
+    mac.reset()
     mac.doFinal(Entry(sensor, value, anomaly, Array[Byte]()).toBytes)
   }
 

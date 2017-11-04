@@ -43,3 +43,7 @@ Verify the data store using CQL:
     $ cqlsh -k sandbox -e "select * from entry limit 10;"
 
 Verify the data store with the Dashboard: http://localhost:8080
+
+Verify the endpoint detecting anomalies:
+
+    $ curl http://localhost:8082/

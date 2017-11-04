@@ -2,14 +2,13 @@ package mqtt
 
 import akka.actor._
 import akka.stream.ActorMaterializer
-
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
-
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
-
 import lib._
+
+import scala.concurrent.ExecutionContext
 
 object Consumer {
   def props(cluster: Cluster)(implicit materializer: ActorMaterializer) =
@@ -22,17 +21,18 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Consumer._
 
-  implicit val system = context.system
-  implicit val executionContext = system.dispatcher
+  implicit val system: ActorSystem = context.system
+  implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val conf = Config.get
-  val session = cluster.connect(conf.cassandra.keyspace)
+  private val conf = Config.get
+  private val session = cluster.connect(conf.cassandra.keyspace)
 
-  val id = MqttClient.generateClientId
-  val persistence = new MemoryPersistence
   val factory = new EntryFactory(conf.mqtt.salt)
-  val client = new MqttClient(conf.mqtt.broker, id, persistence)
-
+  val client = new MqttClient(
+    conf.mqtt.broker,
+    MqttClient.generateClientId,
+    new MemoryPersistence
+  )
   client.connect()
   client.subscribe(conf.mqtt.topic)
 
@@ -49,9 +49,9 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
     }
   })
 
-  override def postStop() = {
-    client.disconnect
-    session.close
+  override def postStop(): Unit = {
+    client.disconnect()
+    session.close()
   }
 
   override def receive: Receive = {

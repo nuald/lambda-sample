@@ -1,4 +1,4 @@
-package dashboard
+package analyzer
 
 import akka.actor._
 import akka.http.scaladsl.Http.ServerBinding
@@ -8,36 +8,38 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import lib.CassandraClient.RecentAll
+import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import lib._
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
-object Dashboard {
-  def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
-    Props(classOf[Dashboard], cassandraClient, materializer)
+object Endpoint {
+  def props(fastAnalyzer: ActorRef)(implicit materializer: ActorMaterializer) =
+    Props(classOf[Endpoint], fastAnalyzer, materializer)
+
+  final case object Analyze
 }
 
-class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer)
+class Endpoint(fastAnalyzer: ActorRef)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
+  import Endpoint._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val conf = Config.get
-  implicit val timeout: Timeout = Timeout(conf.dashboard.timeout.millis)
+  implicit val timeout: Timeout = Timeout(conf.endpoint.timeout.millis)
 
   val mapper = new ObjectMapper with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
   private val route =
-    path("mqtt") {
+    pathSingleSlash {
       get {
-        onSuccess(cassandraClient ? RecentAll) { entries =>
-          val json = mapper.writeValueAsString(entries)
+        onSuccess(ask(fastAnalyzer, Analyze).mapTo[Seq[Option[String]]]) { entries  =>
+          val json = mapper.writeValueAsString(entries.flatten)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }
@@ -46,9 +48,9 @@ class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMateriali
   var httpBinding: Option[ServerBinding] = None
   val client = new HttpClient(
     route,
-    conf.dashboard.address,
-    conf.dashboard.port,
-    Some("dashboard/index.html"),
+    conf.endpoint.address,
+    conf.endpoint.port,
+    None,
     self
   )
 

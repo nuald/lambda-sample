@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="SBT: org.clapper:scalasti_2.12:3.0.1:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/org.clapper/scalasti_2.12/jars/scalasti_2.12-3.0.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/org.clapper/scalasti_2.12/srcs/scalasti_2.12-3.0.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

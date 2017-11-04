@@ -5,17 +5,17 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
-
 import org.clapper.scalasti.ST
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 
+import lib._
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 import scala.io.Source
 import scala.util.{Failure, Success}
-
-import lib._
 
 object Producer {
   def props()(implicit materializer: ActorMaterializer) =
@@ -28,26 +28,23 @@ class Producer()(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Producer._
 
-  implicit val system = context.system
-  implicit val executionContext = system.dispatcher
+  implicit val system: ActorSystem = context.system
+  implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val conf = Config.get
+  private val conf = Config.get
 
-  val id = MqttClient.generateClientId
-  val persistence = new MemoryPersistence
   val factory = new EntryFactory(conf.mqtt.salt)
-  val client = new MqttClient(conf.mqtt.broker, id, persistence)
-
+  val client = new MqttClient(conf.mqtt.broker,
+    MqttClient.generateClientId,
+    new MemoryPersistence
+  )
   client.connect()
-  val msgTopic = client.getTopic(conf.mqtt.topic)
+  private val msgTopic = client.getTopic(conf.mqtt.topic)
 
-  val r = scala.util.Random
-  val bound = conf.mqtt.bound
-  val offsetStep = bound
-  val sensors = conf.mqtt.sensors.asScala
-  var state = sensors.map(k => (k, "normal")).toMap
+  private val sensors = conf.mqtt.sensors.asScala
+  private var state = sensors.map(k => (k, "normal")).toMap
 
-  val route =
+  private val route =
     path("update") {
       post {
         formFieldMap { fields =>
@@ -69,7 +66,7 @@ class Producer()(implicit materializer: ActorMaterializer)
     }
 
   var httpBinding: Option[ServerBinding] = None
-  val httpClient = HttpClient(
+  val httpClient = new HttpClient(
     route,
     conf.producer.address,
     conf.producer.port,
@@ -77,17 +74,21 @@ class Producer()(implicit materializer: ActorMaterializer)
     self
   )
 
-  override def postStop() = {
+  override def postStop():Unit = {
     httpBinding match {
       case Some(x) => x.unbind
       case None =>
     }
-    client.disconnect
+    client.disconnect()
   }
 
   override def receive: Receive = {
     case Publish =>
+      val r = scala.util.Random
+      val bound = conf.mqtt.bound
+      val offsetStep = bound
       var offset = 0
+
       for (sensor <- sensors) {
         val sensorState = state(sensor)
         val value = sensorState match {
@@ -97,7 +98,7 @@ class Producer()(implicit materializer: ActorMaterializer)
         val entry = factory.create(sensor, value, sensorState == "anomaly")
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))
 
-        val messageId = token.getMessageId()
+        val messageId = token.getMessageId
         offset += offsetStep
 
         log.debug(s"Published message: id -> $messageId, payload -> $entry")

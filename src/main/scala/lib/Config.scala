@@ -19,12 +19,13 @@ class CassandraConfig {
   @BeanProperty var address = ""
   @BeanProperty var keyspace = ""
   @BeanProperty var table = ""
+  @BeanProperty var recent = 100
 }
 
 class DashboardConfig {
   @BeanProperty var address = ""
   @BeanProperty var port = 8080
-  @BeanProperty var limit = 100
+  @BeanProperty var timeout = 5000
 }
 
 class ProducerConfig {
@@ -32,11 +33,23 @@ class ProducerConfig {
   @BeanProperty var port = 8081
 }
 
+class EndpointConfig {
+  @BeanProperty var address = ""
+  @BeanProperty var port = 8082
+  @BeanProperty var timeout = 1000
+}
+
+class FastAnalyzerConfig {
+  @BeanProperty var timeout = 1000
+}
+
 class Config {
   @BeanProperty var mqtt = new MqttConfig
   @BeanProperty var cassandra = new CassandraConfig
   @BeanProperty var dashboard = new DashboardConfig
   @BeanProperty var producer = new ProducerConfig
+  @BeanProperty var endpoint = new EndpointConfig
+  @BeanProperty var fastAnalyzer = new FastAnalyzerConfig
 }
 
 object Config {
