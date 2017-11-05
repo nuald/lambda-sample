@@ -35,6 +35,23 @@ object SensorMeta {
 object FastAnalyzer {
   def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
     Props(classOf[FastAnalyzer], cassandraClient, materializer)
+
+  def getAnomaly(value: Double, values: List[Double]): Double = {
+    val size = values.size
+    val avg = values.sum / size
+    val stddev = math.sqrt(
+      values.map(x => math.pow(x - avg, 2)).sum / size
+    )
+    val recentDev = math.abs(value - avg)
+    val anomaly = (recentDev - stddev) / (2 * stddev)
+    if (anomaly < 0) {
+      0
+    } else if (anomaly > 1) {
+      1
+    } else {
+      anomaly
+    }
+  }
 }
 
 class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer)
@@ -48,21 +65,8 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
   def analyze(entries: List[Entry]): Double = {
-    val values = entries.map(_.value)
-    val size = values.size
-    val avg = values.sum / size
-    val stddev = math.sqrt(
-      values.map(x => math.pow(x - avg, 2)).sum / size
-    )
-    val recentDev = math.abs(values.head - avg)
-    val anomaly = (recentDev - stddev) / (2 * stddev)
-    if (anomaly < 0) {
-      0
-    } else if (anomaly > 1) {
-      1
-    } else {
-      anomaly
-    }
+    val values = entries.map(_.value.toDouble)
+    FastAnalyzer.getAnomaly(values.head, values)
   }
 
   override def receive: Receive = {

@@ -38,13 +38,38 @@ Verify the messages by subscribing to the required MQTT topic:
 
     $ mosquitto_sub -t sensors/power
 
-### Processing Cluster
+### Interactive Processing
 
 Verify the data stores with the Dashboard: http://localhost:8080
 
 Verify the entries data store using CQL:
 
     $ cqlsh -k sandbox -e "select * from entry limit 10;"
+
+Dump the entries into the CSV file:
+
+    $ cqlsh -k sandbox -e "copy entry(sensor,ts,value) to 'list.csv';"
+
+An example REPL session with `sbt console`:
+
+```scala
+// Fix the borked REPL
+jline.TerminalFactory.get.init
+
+// Read the values from the CSV file
+val l = scala.io.Source.fromFile("list.csv").getLines.map(_.split(",")).toList
+
+// Get the sensor name for further analysis
+val name = l(0)(0)
+
+// Get the first 200 values for the given sensor
+val values = l.filter(_(0) == name).map(_(2).toDouble).take(200)
+
+// Use the fast analyzer for the sample value
+analyzer.FastAnalyzer.getAnomaly(99, values)
+```
+
+### Processing Cluster
 
 Verify the endpoint for anomaly detection:
 
