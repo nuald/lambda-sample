@@ -10,7 +10,7 @@ import akka.util.Timeout
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import lib.CassandraClient.RecentAll
+import lib.CassandraClient.{HistoryAll, RecentAll}
 import lib._
 
 import scala.concurrent.duration._
@@ -37,6 +37,13 @@ class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMateriali
     path("mqtt") {
       get {
         onSuccess(cassandraClient ? RecentAll) { entries =>
+          val json = mapper.writeValueAsString(entries)
+          complete(HttpEntity(ContentTypes.`application/json`, json))
+        }
+      }
+    } ~ path("history") {
+      get {
+        onSuccess(cassandraClient ? HistoryAll) { entries =>
           val json = mapper.writeValueAsString(entries)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }

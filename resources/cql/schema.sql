@@ -8,3 +8,10 @@ CREATE TABLE IF NOT EXISTS sandbox.entry(
   anomaly boolean,
   PRIMARY KEY ((sensor), ts)
 ) WITH CLUSTERING ORDER BY (ts DESC);
+
+CREATE TABLE IF NOT EXISTS sandbox.analysis(
+  sensor text,
+  ts timestamp,
+  anomaly double,
+  PRIMARY KEY ((sensor), ts)
+) WITH CLUSTERING ORDER BY (ts DESC);

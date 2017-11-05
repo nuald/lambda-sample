@@ -8,6 +8,7 @@ Please install:
 
  - [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker
  - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
+ - [Redis](https://redis.io/) in-memory data store 
  - [Apache Spark](https://spark.apache.org/) data processing engine
  - [SBT](http://www.scala-sbt.org/) build tool
 
@@ -15,7 +16,7 @@ Please install:
 
 Configure the Cassandra data store:
 
-    $ cqlsh -f resources/cql/schema.cql
+    $ cqlsh -f resources/cql/schema.sql
 
 *NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`*
 
@@ -23,8 +24,9 @@ Run the servers:
 
     $ mosquitto
     $ cassandra -f
+    $ redis-server
 
-Run the system (for the convenience, all the microservices are packaged into one system):
+Run the system (for the convenience, all microservices are packaged into the one system):
 
     $ sbt run
 
@@ -38,12 +40,20 @@ Verify the messages by subscribing to the required MQTT topic:
 
 ### Processing Cluster
 
-Verify the data store using CQL:
+Verify the data stores with the Dashboard: http://localhost:8080
+
+Verify the entries data store using CQL:
 
     $ cqlsh -k sandbox -e "select * from entry limit 10;"
 
-Verify the data store with the Dashboard: http://localhost:8080
-
-Verify the endpoint detecting anomalies:
+Verify the endpoint for anomaly detection:
 
     $ curl http://localhost:8082/
+
+Check the latest analyzer snapshot:
+
+    $ redis-cli hgetall fast-analysis 
+
+Verify the history of detecting anomalies using CQL:
+
+    $ cqlsh -k sandbox -e "select * from analysis limit 10;"

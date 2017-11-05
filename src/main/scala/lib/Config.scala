@@ -18,8 +18,13 @@ class MqttConfig {
 class CassandraConfig {
   @BeanProperty var address = ""
   @BeanProperty var keyspace = ""
-  @BeanProperty var table = ""
   @BeanProperty var recent = 100
+  @BeanProperty var table = ""
+}
+
+class RedisConfig {
+  @BeanProperty var address = ""
+  @BeanProperty var port = 6379
 }
 
 class DashboardConfig {
@@ -41,15 +46,23 @@ class EndpointConfig {
 
 class FastAnalyzerConfig {
   @BeanProperty var timeout = 1000
+  @BeanProperty var key = ""
+}
+
+class HistoryWriterConfig {
+  @BeanProperty var period = 1000
+  @BeanProperty var table = ""
 }
 
 class Config {
   @BeanProperty var mqtt = new MqttConfig
   @BeanProperty var cassandra = new CassandraConfig
+  @BeanProperty var redis = new RedisConfig
   @BeanProperty var dashboard = new DashboardConfig
   @BeanProperty var producer = new ProducerConfig
   @BeanProperty var endpoint = new EndpointConfig
   @BeanProperty var fastAnalyzer = new FastAnalyzerConfig
+  @BeanProperty var historyWriter = new HistoryWriterConfig
 }
 
 object Config {

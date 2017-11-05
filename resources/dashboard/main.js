@@ -12,7 +12,7 @@ $(function () {
   var margins = {
     top: 50,
     right: 20,
-    bottom: 50,
+    bottom: 0,
     left: 50
   };
   var legendRectSize = 18;
@@ -21,7 +21,8 @@ $(function () {
   var colorMap = {};
 
   function getColor(key) {
-    if (!colorMap[key]) {
+  debugger;
+    if (typeof colorMap[key] === 'undefined') {
       for (var colorKey in colorPool) {
         if (!colorPool[colorKey]) {
           colorPool[colorKey] = key;
@@ -33,41 +34,60 @@ $(function () {
     return colorMap[key];
   }
 
-  var vis = d3.select("#visualisation"),
-    width = vis.attr('width'),
-    height = vis.attr('height');
+  function render(graph, src, nameKey, xKey, yKey) {
+    var vis = d3.select(graph),
+      width = vis.attr('width'),
+      height = vis.attr('height');
 
-  function render() {
-    d3.json("mqtt").get(function(error, data) {
+    d3.json(src).get(function(error, data) {
       if (error) {
         throw error;
       }
 
+      var min = d3.min(data, function(d) { return d[yKey];}),
+        max = d3.max(data, function(d) { return d[yKey];}),
+        offset = max - min,
+        currentOffset = 0,
+        offsetMap = {};
+
+      function getOffset(key) {
+        if (typeof offsetMap[key] === 'undefined') {
+          offsetMap[key] = currentOffset;
+          currentOffset += offset;
+        }
+        return offsetMap[key];
+      }
+
+      for (var i = 0; i < data.length; ++i) {
+        var entry = data[i];
+        entry[yKey] += getOffset(entry[nameKey]);
+      }
+
       var xScale = d3.scaleLinear().range([margins.left, width - margins.right])
           .domain([d3.min(data, function(d) {
-            return d.ts;
+            return d[xKey];
           }), d3.max(data, function(d) {
-            return d.ts;
+            return d[xKey];
           })]),
         yScale = d3.scaleLinear().range([height - margins.top, margins.bottom])
           .domain([d3.min(data, function(d) {
-            return d.value;
+            return d[yKey];
           }), d3.max(data, function(d) {
-            return d.value;
+            return d[yKey];
           })]),
         xAxis = d3.axisBottom(xScale),
         yAxis = d3.axisLeft(yScale),
         lineGen = d3.line()
           .x(function(d) {
-            return xScale(d.ts);
+            return xScale(d[xKey]);
           })
           .y(function(d) {
-            return yScale(d.value);
+            return yScale(d[yKey]);
           })
           .curve(d3.curveLinear),
         dataGroup = d3.nest()
           .key(function(d) {
-            return d.sensor;
+            return d[nameKey];
           })
           .entries(data),
         lSpace = width / dataGroup.length;
@@ -76,7 +96,7 @@ $(function () {
 
       vis.append("g")
         .attr("class", "x axis")
-        .attr("transform", "translate(0," + (height - margins.bottom) + ")")
+        .attr("transform", "translate(0," + (height - margins.top) + ")")
         .call(xAxis);
       vis.append("g")
         .attr("class", "y axis")
@@ -114,6 +134,7 @@ $(function () {
   }
 
   d3.interval(function() {
-    render();
+    render('#entries', 'mqtt', 'sensor', 'ts', 'value');
+    render('#history', 'history', 'name', 'ts', 'anomaly');
   }, 1000);
 });

@@ -38,8 +38,8 @@ class Endpoint(fastAnalyzer: ActorRef)(implicit materializer: ActorMaterializer)
   private val route =
     pathSingleSlash {
       get {
-        onSuccess(ask(fastAnalyzer, Analyze).mapTo[Seq[Option[String]]]) { entries  =>
-          val json = mapper.writeValueAsString(entries.flatten)
+        onSuccess(ask(fastAnalyzer, Analyze).mapTo[Seq[SensorMeta]]) { entries  =>
+          val json = mapper.writeValueAsString(entries)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }

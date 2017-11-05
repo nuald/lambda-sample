@@ -8,7 +8,6 @@ import akka.stream.ActorMaterializer
 import org.clapper.scalasti.ST
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
-
 import lib._
 
 import scala.collection.JavaConverters._
@@ -21,7 +20,7 @@ object Producer {
   def props()(implicit materializer: ActorMaterializer) =
     Props(classOf[Producer], materializer)
 
-  final case object Publish
+  private final case object Tick
 }
 
 class Producer()(implicit materializer: ActorMaterializer)
@@ -83,23 +82,21 @@ class Producer()(implicit materializer: ActorMaterializer)
   }
 
   override def receive: Receive = {
-    case Publish =>
+    case Tick =>
       val r = scala.util.Random
       val bound = conf.mqtt.bound
-      val offsetStep = bound
-      var offset = 0
 
       for (sensor <- sensors) {
         val sensorState = state(sensor)
-        val value = sensorState match {
-          case "normal" => offset + r.nextInt(bound)
-          case "anomaly" => offset + 4 * bound / 5 + r.nextInt(bound / 5)
-        }
+        val sign = if (r.nextBoolean()) -1 else 1
+        val value = sign * (sensorState match {
+          case "normal" => r.nextInt(bound)
+          case "anomaly" => bound + r.nextInt(bound / 2)
+        })
         val entry = factory.create(sensor, value, sensorState == "anomaly")
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))
 
         val messageId = token.getMessageId
-        offset += offsetStep
 
         log.debug(s"Published message: id -> $messageId, payload -> $entry")
       }
@@ -110,6 +107,6 @@ class Producer()(implicit materializer: ActorMaterializer)
   }
 
   system.scheduler.schedule(0.millis, conf.mqtt.timeout.millis) {
-    self ! Publish
+    self ! Tick
   }
 }

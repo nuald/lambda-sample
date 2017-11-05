@@ -2,7 +2,8 @@ package lib
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import com.datastax.driver.core.Cluster
+import analyzer.SensorMeta
+import com.datastax.driver.core.{Cluster, ResultSet}
 import com.datastax.driver.core.querybuilder.QueryBuilder
 
 import scala.concurrent.ExecutionContext
@@ -16,6 +17,7 @@ object CassandraClient {
   final case class Recent(sensor: String)
 
   final case object RecentAll
+  final case object HistoryAll
 }
 
 class CassandraClient(cluster: Cluster)(implicit materializer: ActorMaterializer)
@@ -29,18 +31,29 @@ class CassandraClient(cluster: Cluster)(implicit materializer: ActorMaterializer
   private val conf = Config.get
   private val session = cluster.connect(conf.cassandra.keyspace)
 
-  def values(sensor: String): Iterable[Entry] = {
+  def values(sensor: String, table: String): ResultSet = {
     val query = QueryBuilder.select().all()
-      .from(conf.cassandra.table)
+      .from(table)
       .where(QueryBuilder.eq("sensor", sensor))
       .limit(conf.cassandra.recent)
-    val rs = session.execute(query)
+    session.execute(query)
+  }
 
+  def getEntries(rs: ResultSet): Iterable[Entry] = {
     for (row <- rs.asScala)
       yield Entry(
         row.getString("sensor"),
         row.getTimestamp("ts"),
         row.getInt("value")
+      )
+  }
+
+  def getMeta(rs: ResultSet): Iterable[SensorMeta] = {
+    for (row <- rs.asScala)
+      yield SensorMeta(
+        row.getString("sensor"),
+        row.getTimestamp("ts"),
+        row.getDouble("anomaly")
       )
   }
 
@@ -51,10 +64,17 @@ class CassandraClient(cluster: Cluster)(implicit materializer: ActorMaterializer
   override def receive: Receive = {
     case RecentAll =>
       val entries =
-        for (sensor <- conf.mqtt.sensors.asScala) yield values(sensor)
+        for (sensor <- conf.mqtt.sensors.asScala)
+          yield getEntries(values(sensor, conf.cassandra.table))
       sender() ! entries.flatten
 
     case Recent(sensor) =>
-      sender() ! values(sensor)
+      sender() ! getEntries(values(sensor, conf.cassandra.table))
+
+    case HistoryAll =>
+      val entries =
+        for (sensor <- conf.mqtt.sensors.asScala)
+          yield getMeta(values(sensor, conf.historyWriter.table))
+      sender() ! entries.flatten
   }
 }
