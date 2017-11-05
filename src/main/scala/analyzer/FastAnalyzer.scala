@@ -9,9 +9,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
-import com.redis._
 import lib.CassandraClient.{Entry, Recent}
 import lib.Config
+import redis.RedisClient
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -44,7 +44,7 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val conf = Config.get
-  val r = new RedisClient(conf.redis.address, conf.redis.port)
+  val r = RedisClient(conf.redis.address, conf.redis.port)
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
   def analyze(entries: List[Entry]): Double = {
@@ -77,9 +77,7 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
               new java.util.Date(System.currentTimeMillis),
               analyze(entries)
             )
-            Future {
-              r.hset(conf.fastAnalyzer.key, sensor, meta.toBytes)
-            }
+            r.hset(conf.fastAnalyzer.key, sensor, meta.toBytes)
             meta
           }
 

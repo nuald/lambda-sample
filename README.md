@@ -8,7 +8,7 @@ Please install:
 
  - [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker
  - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
- - [Redis](https://redis.io/) in-memory data store 
+ - [Redis](https://redis.io/) in-memory data store
  - [Apache Spark](https://spark.apache.org/) data processing engine
  - [SBT](http://www.scala-sbt.org/) build tool
 
@@ -52,7 +52,7 @@ Verify the endpoint for anomaly detection:
 
 Check the latest analyzer snapshot:
 
-    $ redis-cli hgetall fast-analysis 
+    $ redis-cli hgetall fast-analysis
 
 Verify the history of detecting anomalies using CQL:
 

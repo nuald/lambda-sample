@@ -5,9 +5,8 @@ import akka.stream.ActorMaterializer
 import analyzer.Endpoint.Analyze
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
-import com.redis.RedisClient
-import com.redis.serialization.Parse.Implicits._
 import lib._
+import redis.RedisClient
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -32,6 +31,7 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   private val conf = Config.get
+  val r = RedisClient(conf.redis.address, conf.redis.port)
   private val session = cluster.connect(conf.cassandra.keyspace)
 
   private val lastTimestamp = collection.mutable.Map(
@@ -45,12 +45,10 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
   override def receive: Receive = {
     case Tick =>
       val forceAnalyze:Seq[Future[Boolean]] = for (sensor <- conf.mqtt.sensors.asScala)
-        yield Future {
-          val r = new RedisClient(conf.redis.address, conf.redis.port)
-          val bytes = r.hget[Array[Byte]](conf.fastAnalyzer.key, sensor)
-          val needAnalyzeSensor = bytes match {
-            case Some(b) =>
-              val meta = SensorMeta.get(b)
+        yield {
+          r.hget(conf.fastAnalyzer.key, sensor).map {
+            case Some(bytes) =>
+              val meta = SensorMeta.get(bytes.toArray)
               val notUpdatedYet = lastTimestamp(sensor) == meta.ts
               val statement = QueryBuilder.update(conf.historyWriter.table)
                 .`with`(QueryBuilder.set("anomaly", meta.anomaly))
@@ -62,7 +60,6 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
             case None =>
               true
           }
-          needAnalyzeSensor
         }
 
       Future.sequence(forceAnalyze).onComplete {
