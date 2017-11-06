@@ -1,4 +1,8 @@
-# A Sample of Lambda Architecture Project
+:toc: macro
+:toc-title:
+:toclevels: 9
+
+# A Sample of Lambda architecture project
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
 
@@ -26,11 +30,20 @@ Run the servers:
     $ cassandra -f
     $ redis-server
 
+Create the RAM disk and update the [configuration](scala/src/main/resources/application.conf)
+to use it. In the example below we assume macOS, the attached disk name `/dev/disk2`
+and the size of the disk is 100 Mb (100 * 2048):
+
+    $ hdiutil attach -nomount ram://204800
+    $ diskutil erasevolume HFS+ 'Spark' /dev/disk2
+
+*NOTE: For deleting the RAM disk please use: `$ hdiutil detach /dev/disk2`*
+
 Run the system (for the convenience, all microservices are packaged into the one system):
 
     $ sbt run
 
-### IoT Emulation
+### IoT emulation
 
 Modify the sensor values with the Producer: http://localhost:8081
 
@@ -38,7 +51,7 @@ Verify the messages by subscribing to the required MQTT topic:
 
     $ mosquitto_sub -t sensors/power
 
-### Interactive Processing
+### Interactive processing
 
 Verify the data stores with the Dashboard: http://localhost:8080
 
@@ -49,6 +62,8 @@ Verify the entries data store using CQL:
 Dump the entries into the CSV file:
 
     $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
+
+#### Fast analysis
 
 An example REPL session with `sbt console`:
 
@@ -76,7 +91,11 @@ val samples = Seq(10, 200, -100)
 samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
 ```
 
-An example REPL session for the decision tree analysis with `spark-shell`:
+#### Full analysis
+
+An example REPL session for the decision tree analysis with `spark-shell`.
+
+Fit and save the model:
 
 ```scala
 import org.apache.spark.ml.classification.DecisionTreeClassifier
@@ -101,6 +120,22 @@ val lr = new DecisionTreeClassifier().setLabelCol("anomaly")
 // Fit the model
 val model = lr.fit(assembler.transform(filtered))
 
+// Save into the RAM disk
+model.save("/Volumes/Spark/model")
+```
+
+Load and use the model:
+
+```scala
+import org.apache.spark.ml.classification.DecisionTreeClassificationModel
+import org.apache.spark.ml.feature.VectorAssembler
+
+// Create the assembler to generate features vector
+val assembler = new VectorAssembler().setInputCols(Array("value")).setOutputCol("features")
+
+// Load the model
+val model = DecisionTreeClassifier.load("/Volumes/Spark/model")
+
 // Prepare test data (the model ignores label value, can use any)
 val samples = Seq(10, 200, -100)
 val seq = samples.map(sample => (0.0, sample))
@@ -111,7 +146,6 @@ val predictions = model.transform(assembler.transform(t))
 
 // Show the probabilities
 predictions.select("probability", "prediction").show(false)
-
 ```
 
 ### Processing Cluster
