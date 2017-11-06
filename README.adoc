@@ -2,21 +2,21 @@
 :toc-title:
 :toclevels: 9
 
-# A Sample of Lambda architecture project
+= A Sample of Lambda architecture project
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
 
-## Requirements
+== Requirements
 
 Please install:
 
- - [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker
- - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
- - [Redis](https://redis.io/) in-memory data store
- - [Apache Spark](https://spark.apache.org/) data processing engine
- - [SBT](http://www.scala-sbt.org/) build tool
+ - https://mosquitto.org/[Eclipse Mosquitto] MQTT broker
+ - http://cassandra.apache.org/[Apache Cassandra] NoSQL database
+ - https://redis.io/[Redis] in-memory data store
+ - https://spark.apache.org/[Apache Spark] data processing engine
+ - http://www.scala-sbt.org/[SBT] build tool
 
-## Usage
+== Usage
 
 Configure the Cassandra data store:
 
@@ -30,7 +30,7 @@ Run the servers:
     $ cassandra -f
     $ redis-server
 
-Create the RAM disk and update the [configuration](scala/src/main/resources/application.conf)
+Create the RAM disk and update the [configuration](src/main/resources/application.conf)
 to use it. In the example below we assume macOS, the attached disk name `/dev/disk2`
 and the size of the disk is 100 Mb (100 * 2048):
 
@@ -43,7 +43,7 @@ Run the system (for the convenience, all microservices are packaged into the one
 
     $ sbt run
 
-### IoT emulation
+=== IoT emulation
 
 Modify the sensor values with the Producer: http://localhost:8081
 
@@ -51,7 +51,7 @@ Verify the messages by subscribing to the required MQTT topic:
 
     $ mosquitto_sub -t sensors/power
 
-### Interactive processing
+=== Interactive processing
 
 Verify the data stores with the Dashboard: http://localhost:8080
 
@@ -63,11 +63,12 @@ Dump the entries into the CSV file:
 
     $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
 
-#### Fast analysis
+==== Fast analysis
 
 An example REPL session with `sbt console`:
 
-```scala
+[source,scala]
+----
 // Fix the borked REPL
 jline.TerminalFactory.get.init
 
@@ -89,15 +90,17 @@ val values = l.filter(_(0) == name).take(200).map(_(2).toDouble)
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
 samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
-```
+----
 
-#### Full analysis
+==== Full analysis
 
-An example REPL session for the decision tree analysis with `spark-shell`.
+See below two example REPL sessions for the decision tree analysis with `spark-shell` to
+demonstate two processes: fitting the model and using it for the prediction.
 
 Fit and save the model:
 
-```scala
+[source,scala]
+----
 import org.apache.spark.ml.classification.DecisionTreeClassifier
 import org.apache.spark.ml.feature.VectorAssembler
 
@@ -122,11 +125,12 @@ val model = lr.fit(assembler.transform(filtered))
 
 // Save into the RAM disk
 model.save("/Volumes/Spark/model")
-```
+----
 
 Load and use the model:
 
-```scala
+[source,scala]
+----
 import org.apache.spark.ml.classification.DecisionTreeClassificationModel
 import org.apache.spark.ml.feature.VectorAssembler
 
@@ -134,7 +138,7 @@ import org.apache.spark.ml.feature.VectorAssembler
 val assembler = new VectorAssembler().setInputCols(Array("value")).setOutputCol("features")
 
 // Load the model
-val model = DecisionTreeClassifier.load("/Volumes/Spark/model")
+val model = DecisionTreeClassificationModel.load("/Volumes/Spark/model")
 
 // Prepare test data (the model ignores label value, can use any)
 val samples = Seq(10, 200, -100)
@@ -146,9 +150,9 @@ val predictions = model.transform(assembler.transform(t))
 
 // Show the probabilities
 predictions.select("probability", "prediction").show(false)
-```
+----
 
-### Processing Cluster
+=== Processing Cluster
 
 Verify the endpoint for anomaly detection:
 
