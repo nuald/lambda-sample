@@ -44,11 +44,11 @@ Verify the data stores with the Dashboard: http://localhost:8080
 
 Verify the entries data store using CQL:
 
-    $ cqlsh -k sandbox -e "select * from entry limit 10;"
+    $ cqlsh -e "select * from sandbox.entry limit 10;"
 
 Dump the entries into the CSV file:
 
-    $ cqlsh -k sandbox -e "copy entry(sensor,ts,value) to 'list.csv';"
+    $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
 
 An example REPL session with `sbt console`:
 
@@ -57,16 +57,62 @@ An example REPL session with `sbt console`:
 jline.TerminalFactory.get.init
 
 // Read the values from the CSV file
-val l = scala.io.Source.fromFile("list.csv").getLines.map(_.split(",")).toList
+val iter = scala.io.Source.fromFile("list.csv").getLines
+
+// Get the header
+val header = iter.next.split(",")
+
+// Get the data
+val l = iter.map(_.split(",")).toList
 
 // Get the sensor name for further analysis
-val name = l(0)(0)
+val name = l.head(header.indexOf("sensor"))
 
 // Get the first 200 values for the given sensor
-val values = l.filter(_(0) == name).map(_(2).toDouble).take(200)
+val values = l.filter(_(0) == name).take(200).map(_(2).toDouble)
 
-// Use the fast analyzer for the sample value
-analyzer.FastAnalyzer.getAnomaly(99, values)
+// Use the fast analyzer for the sample values
+val samples = Seq(10, 200, -100)
+samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
+```
+
+An example REPL session for the binomial logistic regression analysis with `spark-shell`:
+
+```scala
+// Necessary imports
+import org.apache.spark.ml.classification.DecisionTreeClassifier
+import org.apache.spark.ml.feature.VectorAssembler
+
+// Create the assembler to generate features vector
+val assembler = new VectorAssembler().setInputCols(Array("value")).setOutputCol("features")
+
+// Read the values from the CSV file
+val l = spark.read.options(Map("header" -> "true", "inferSchema" -> "true")).csv("list.csv")
+
+// Get the sensor name for further analysis
+val sensorCol = l.schema.fieldIndex("sensor")
+val name = l.first.getString(sensorCol)
+
+// Get the first 1000 values for the given sensor
+val filtered = l.filter(row => row.getString(sensorCol) == name).limit(1000)
+
+// Create the model
+val lr = new DecisionTreeClassifier().setLabelCol("anomaly")
+
+// Fit the model
+val model = lr.fit(assembler.transform(filtered))
+
+// Prepare test data (the model ignores label value, can use any)
+val samples = Seq(10, 200, -100)
+val seq = samples.map(sample => (0.0, sample))
+val t = spark.createDataFrame(seq).toDF("anomaly", "value")
+
+// Makes the prediction
+val predictions = model.transform(assembler.transform(t))
+
+// Show the probabilities
+predictions.select("probability", "prediction").show(false)
+
 ```
 
 ### Processing Cluster
@@ -81,4 +127,4 @@ Check the latest analyzer snapshot:
 
 Verify the history of detecting anomalies using CQL:
 
-    $ cqlsh -k sandbox -e "select * from analysis limit 10;"
+    $ cqlsh -e "select * from sandbox.analysis limit 10;"

@@ -65,7 +65,7 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
   def analyze(entries: List[Entry]): Double = {
-    val values = entries.map(_.value.toDouble)
+    val values = entries.map(_.value)
     FastAnalyzer.getAnomaly(values.head, values)
   }
 

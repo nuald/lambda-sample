@@ -93,7 +93,11 @@ class Producer()(implicit materializer: ActorMaterializer)
           case "normal" => r.nextInt(bound)
           case "anomaly" => bound + r.nextInt(bound / 2)
         })
-        val entry = factory.create(sensor, value, sensorState == "anomaly")
+        val entry = factory.create(
+          sensor,
+          value,
+          if (sensorState == "anomaly") 1.0 else 0.0
+        )
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))
 
         val messageId = token.getMessageId

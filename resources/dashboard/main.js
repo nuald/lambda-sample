@@ -21,7 +21,6 @@ $(function () {
   var colorMap = {};
 
   function getColor(key) {
-  debugger;
     if (typeof colorMap[key] === 'undefined') {
       for (var colorKey in colorPool) {
         if (!colorPool[colorKey]) {

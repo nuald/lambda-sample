@@ -13,7 +13,7 @@ object CassandraClient {
   def props(cluster: Cluster)(implicit materializer: ActorMaterializer) =
     Props(classOf[CassandraClient], cluster, materializer)
 
-  final case class Entry(sensor: String, ts: java.util.Date, value: Int)
+  final case class Entry(sensor: String, ts: java.util.Date, value: Double)
   final case class Recent(sensor: String)
 
   final case object RecentAll
@@ -44,7 +44,7 @@ class CassandraClient(cluster: Cluster)(implicit materializer: ActorMaterializer
       yield Entry(
         row.getString("sensor"),
         row.getTimestamp("ts"),
-        row.getInt("value")
+        row.getDouble("value")
       )
   }
 

@@ -61,7 +61,7 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
         val entry = factory.get(message.getPayload)
 
         val statement = QueryBuilder.update(conf.cassandra.table)
-          .`with`(QueryBuilder.set("value", Integer.valueOf(entry.value)))
+          .`with`(QueryBuilder.set("value", entry.value))
           .and(QueryBuilder.set("anomaly", entry.anomaly))
           .where(QueryBuilder.eq("sensor", entry.sensor))
           .and(QueryBuilder.eq("ts", System.currentTimeMillis))
