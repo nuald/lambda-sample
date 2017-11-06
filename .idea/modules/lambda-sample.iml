@@ -22,6 +22,20 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="SBT: ch.qos.logback:logback-classic:1.2.3:jar" level="project" />
+    <orderEntry type="library" name="SBT: xpp3:xpp3_min:1.1.4c:jar" level="project" />
+    <orderEntry type="library" name="SBT: xmlpull:xmlpull:1.1.3.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.swinglabs:swingx:1.6.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.swinglabs:swing-worker:1.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.thoughtworks.xstream:xstream:1.4.8:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.jhlabs:filters:2.0.235:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-scala_2.12:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-plot:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-nlp:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-math:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-interpolation:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-graph:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-data:1.4.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.haifengl:smile-core:1.4.0:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe.akka:akka-slf4j_2.12:2.4.19:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe.akka:akka-actor_2.12:2.4.19:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe:config:1.3.0:jar" level="project" />

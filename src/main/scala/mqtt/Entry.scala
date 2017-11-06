@@ -8,7 +8,7 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-case class Entry(sensor: String, value: Double, anomaly: Double, signature: Array[Byte]) {
+case class Entry(sensor: String, value: Double, anomaly: Int, signature: Array[Byte]) {
   def toBytes: Array[Byte] = {
     val mapper = new ObjectMapper(new SmileFactory) with ScalaObjectMapper
     mapper.registerModule(DefaultScalaModule)
@@ -26,12 +26,12 @@ class EntryFactory(salt: String) {
   val mapper = new ObjectMapper(new SmileFactory) with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
-  def getSignature(sensor: String, value: Double, anomaly: Double): Array[Byte] = {
+  def getSignature(sensor: String, value: Double, anomaly: Int): Array[Byte] = {
     mac.reset()
     mac.doFinal(Entry(sensor, value, anomaly, Array[Byte]()).toBytes)
   }
 
-  def create(sensor: String, value: Double, anomaly: Double): Entry =
+  def create(sensor: String, value: Double, anomaly: Int): Entry =
     Entry(sensor, value, anomaly, getSignature(sensor, value, anomaly))
 
   def get(bytes: Array[Byte]): Entry = {

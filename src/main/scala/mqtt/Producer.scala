@@ -96,7 +96,7 @@ class Producer()(implicit materializer: ActorMaterializer)
         val entry = factory.create(
           sensor,
           value,
-          if (sensorState == "anomaly") 1.0 else 0.0
+          if (sensorState == "anomaly") 1 else 0
         )
         val token = msgTopic.publish(new MqttMessage(entry.toBytes))
 

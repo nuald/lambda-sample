@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS sandbox.entry(
   sensor text,
   ts timestamp,
   value double,
-  anomaly double,
+  anomaly int,
   PRIMARY KEY ((sensor), ts)
 ) WITH CLUSTERING ORDER BY (ts DESC);
 

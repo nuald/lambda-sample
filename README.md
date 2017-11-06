@@ -20,7 +20,6 @@ Please install:
  - [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker
  - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
  - [Redis](https://redis.io/) in-memory data store
- - [Apache Spark](https://spark.apache.org/) data processing engine
  - [SBT](http://www.scala-sbt.org/) build tool
 
 ## Usage
@@ -36,15 +35,6 @@ Run the servers:
     $ mosquitto
     $ cassandra -f
     $ redis-server
-
-Create the RAM disk and update the [configuration](src/main/resources/application.conf)
-to use it. In the example below we assume macOS, the attached disk name `/dev/disk2`
-and the size of the disk is 100 Mb (100 * 2048):
-
-    $ hdiutil attach -nomount ram://204800
-    $ diskutil erasevolume HFS+ 'Spark' /dev/disk2
-
-*NOTE: For deleting the RAM disk please use: `$ hdiutil detach /dev/disk2`.*
 
 Run the system (for the convenience, all microservices are packaged into the one system):
 
@@ -70,9 +60,16 @@ Dump the entries into the CSV file:
 
     $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
 
-#### Fast analysis
+An example REPL session with `sbt console` consists of 4 parts:
 
-An example REPL session with `sbt console`:
+1. Preparing the data set
+2. Fast analysis
+3. Fitting the model (full analysis)
+4. Using the model for the prediction
+
+#### Prepare the data set
+
+Read the CSV file and extract the features and the labels for the particular sensor:
 
 ```scala
 // Fix the borked REPL
@@ -90,70 +87,70 @@ val l = iter.map(_.split(",")).toList
 // Get the sensor name for further analysis
 val name = l.head(header.indexOf("sensor"))
 
-// Get the first 200 values for the given sensor
-val values = l.filter(_(0) == name).take(200).map(_(2).toDouble)
+// Features are multi-dimensional, labels are integers
+val mapping = (x: Array[String]) => (Array(x(2).toDouble), x(3).toInt)
+
+// Extract the features and the labels for the given sensor
+val (features, labels) = l.filter(_(0) == name).map(mapping).unzip
+```
+
+#### Fast analysis
+
+Fast analysis (labels are ignored because we don't use any training here):
+
+```scala
+// Get the first 200 values
+val values = features.flatten.take(200)
 
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
 samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
 ```
 
-#### Full analysis
+#### Fitting the model
 
-See below two example REPL sessions for the decision tree analysis with `spark-shell` to
-demonstrate two processes: fitting the model and using it for the prediction.
-
-Fit and save the model:
+Fit and save the Random Forest model:
 
 ```scala
-import org.apache.spark.ml.classification.DecisionTreeClassifier
-import org.apache.spark.ml.feature.VectorAssembler
-
-// Create the assembler to generate features vector
-val assembler = new VectorAssembler().setInputCols(Array("value")).setOutputCol("features")
-
-// Read the values from the CSV file
-val l = spark.read.options(Map("header" -> "true", "inferSchema" -> "true")).csv("list.csv")
-
-// Get the sensor name for further analysis
-val sensorCol = l.schema.fieldIndex("sensor")
-val name = l.first.getString(sensorCol)
-
-// Get the first 1000 values for the given sensor
-val filtered = l.filter(row => row.getString(sensorCol) == name).limit(1000)
-
-// Create the model
-val lr = new DecisionTreeClassifier().setLabelCol("anomaly")
+import java.io._
+import smile.classification.randomForest
 
 // Fit the model
-val model = lr.fit(assembler.transform(filtered))
+val rf = randomForest(features.toArray, labels.toArray)
 
-// Save into the RAM disk
-model.save("/Volumes/Spark/model")
+// Get the dot format for a sample tree (could be visualized with http://viz-js.com/)
+rf.getTrees()(0).dot
+
+// Serialize the model
+val fileOut = new FileOutputStream("rf.bin")
+val out = new ObjectOutputStream(fileOut)
+out.writeObject(rf)
+out.close
+fileOut.close
 ```
+
+#### Using the model
 
 Load and use the model:
 
 ```scala
-import org.apache.spark.ml.classification.DecisionTreeClassificationModel
-import org.apache.spark.ml.feature.VectorAssembler
+import java.io._
+import smile.classification.RandomForest
 
-// Create the assembler to generate features vector
-val assembler = new VectorAssembler().setInputCols(Array("value")).setOutputCol("features")
+// Deserialize the model
+val fileIn = new FileInputStream("rf.bin")
+val in = new ObjectInputStream(fileIn)
+val rf = in.readObject().asInstanceOf[RandomForest]
+in.close
+fileIn.close
 
-// Load the model
-val model = DecisionTreeClassificationModel.load("/Volumes/Spark/model")
-
-// Prepare test data (the model ignores label value, can use any)
+// Use the loaded model for the sample values
 val samples = Seq(10, 200, -100)
-val seq = samples.map(sample => (0.0, sample))
-val t = spark.createDataFrame(seq).toDF("anomaly", "value")
-
-// Make the predictions
-val predictions = model.transform(assembler.transform(t))
-
-// Show the probabilities
-predictions.select("probability", "prediction").show(false)
+samples.map { sample =>
+  val probability = new Array[Double](2)
+  val prediction = rf.predict(Array(sample), probability)
+  (prediction, probability)
+}
 ```
 
 ### Processing Cluster
