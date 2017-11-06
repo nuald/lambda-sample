@@ -9,11 +9,12 @@ The boilerplate project for detecting IoT sensor anomalies using the Lambda arch
   * [Usage](#usage)
     * [IoT emulation](#iot-emulation)
     * [Interactive processing](#interactive-processing)
-      * [Prepare the data set](#prepare-the-data-set)
+      * [Preparing the data set](#preparing-the-data-set)
       * [Fast analysis](#fast-analysis)
       * [Fitting the model](#fitting-the-model)
       * [Using the model](#using-the-model)
     * [Processing Cluster](#processing-cluster)
+
 ## Requirements
 
 Please install:
@@ -61,14 +62,14 @@ Dump the entries into the CSV file:
 
     $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
 
-An example REPL session with `sbt console` consists of 4 parts:
+An example REPL session (with `sbt console`) consists of 4 parts:
 
 1. Preparing the data set
 2. Fast analysis
 3. Fitting the model (full analysis)
 4. Using the model for the prediction
 
-#### Prepare the data set
+#### Preparing the data set
 
 Read the CSV file and extract the features and the labels for the particular sensor:
 
