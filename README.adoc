@@ -6,6 +6,8 @@
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
 
+toc::[]
+
 == Requirements
 
 Please install:
@@ -22,7 +24,7 @@ Configure the Cassandra data store:
 
     $ cqlsh -f resources/cql/schema.sql
 
-*NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`*
+_NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`._
 
 Run the servers:
 
@@ -30,14 +32,14 @@ Run the servers:
     $ cassandra -f
     $ redis-server
 
-Create the RAM disk and update the [configuration](src/main/resources/application.conf)
+Create the RAM disk and update the src/main/resources/application.conf[configuration]
 to use it. In the example below we assume macOS, the attached disk name `/dev/disk2`
 and the size of the disk is 100 Mb (100 * 2048):
 
     $ hdiutil attach -nomount ram://204800
     $ diskutil erasevolume HFS+ 'Spark' /dev/disk2
 
-*NOTE: For deleting the RAM disk please use: `$ hdiutil detach /dev/disk2`*
+_NOTE: For deleting the RAM disk please use: `$ hdiutil detach /dev/disk2`._
 
 Run the system (for the convenience, all microservices are packaged into the one system):
 
@@ -95,7 +97,7 @@ samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
 ==== Full analysis
 
 See below two example REPL sessions for the decision tree analysis with `spark-shell` to
-demonstate two processes: fitting the model and using it for the prediction.
+demonstrate two processes: fitting the model and using it for the prediction.
 
 Fit and save the model:
 
