@@ -9,10 +9,11 @@ The boilerplate project for detecting IoT sensor anomalies using the Lambda arch
   * [Usage](#usage)
     * [IoT emulation](#iot-emulation)
     * [Interactive processing](#interactive-processing)
+      * [Prepare the data set](#prepare-the-data-set)
       * [Fast analysis](#fast-analysis)
-      * [Full analysis](#full-analysis)
+      * [Fitting the model](#fitting-the-model)
+      * [Using the model](#using-the-model)
     * [Processing Cluster](#processing-cluster)
-
 ## Requirements
 
 Please install:
