@@ -1,30 +1,35 @@
-:toc: macro
-:toc-title:
-:toclevels: 9
-
-= A Sample of Lambda architecture project
+# A Sample of Lambda architecture project
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
 
-toc::[]
+# Table of Contents
 
-== Requirements
+* [A Sample of Lambda architecture project](#a-sample-of-lambda-architecture-project)
+  * [Requirements](#requirements)
+  * [Usage](#usage)
+    * [IoT emulation](#iot-emulation)
+    * [Interactive processing](#interactive-processing)
+      * [Fast analysis](#fast-analysis)
+      * [Full analysis](#full-analysis)
+    * [Processing Cluster](#processing-cluster)
+
+## Requirements
 
 Please install:
 
- - https://mosquitto.org/[Eclipse Mosquitto] MQTT broker
- - http://cassandra.apache.org/[Apache Cassandra] NoSQL database
- - https://redis.io/[Redis] in-memory data store
- - https://spark.apache.org/[Apache Spark] data processing engine
- - http://www.scala-sbt.org/[SBT] build tool
+ - [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker
+ - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
+ - [Redis](https://redis.io/) in-memory data store
+ - [Apache Spark](https://spark.apache.org/) data processing engine
+ - [SBT](http://www.scala-sbt.org/) build tool
 
-== Usage
+## Usage
 
 Configure the Cassandra data store:
 
     $ cqlsh -f resources/cql/schema.sql
 
-_NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`._
+*NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`.*
 
 Run the servers:
 
@@ -32,20 +37,20 @@ Run the servers:
     $ cassandra -f
     $ redis-server
 
-Create the RAM disk and update the src/main/resources/application.conf[configuration]
+Create the RAM disk and update the [configuration](src/main/resources/application.conf)
 to use it. In the example below we assume macOS, the attached disk name `/dev/disk2`
 and the size of the disk is 100 Mb (100 * 2048):
 
     $ hdiutil attach -nomount ram://204800
     $ diskutil erasevolume HFS+ 'Spark' /dev/disk2
 
-_NOTE: For deleting the RAM disk please use: `$ hdiutil detach /dev/disk2`._
+*NOTE: For deleting the RAM disk please use: `$ hdiutil detach /dev/disk2`.*
 
 Run the system (for the convenience, all microservices are packaged into the one system):
 
     $ sbt run
 
-=== IoT emulation
+### IoT emulation
 
 Modify the sensor values with the Producer: http://localhost:8081
 
@@ -53,7 +58,7 @@ Verify the messages by subscribing to the required MQTT topic:
 
     $ mosquitto_sub -t sensors/power
 
-=== Interactive processing
+### Interactive processing
 
 Verify the data stores with the Dashboard: http://localhost:8080
 
@@ -65,12 +70,11 @@ Dump the entries into the CSV file:
 
     $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
 
-==== Fast analysis
+#### Fast analysis
 
 An example REPL session with `sbt console`:
 
-[source,scala]
-----
+```scala
 // Fix the borked REPL
 jline.TerminalFactory.get.init
 
@@ -92,17 +96,16 @@ val values = l.filter(_(0) == name).take(200).map(_(2).toDouble)
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
 samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
-----
+```
 
-==== Full analysis
+#### Full analysis
 
 See below two example REPL sessions for the decision tree analysis with `spark-shell` to
 demonstrate two processes: fitting the model and using it for the prediction.
 
 Fit and save the model:
 
-[source,scala]
-----
+```scala
 import org.apache.spark.ml.classification.DecisionTreeClassifier
 import org.apache.spark.ml.feature.VectorAssembler
 
@@ -127,12 +130,11 @@ val model = lr.fit(assembler.transform(filtered))
 
 // Save into the RAM disk
 model.save("/Volumes/Spark/model")
-----
+```
 
 Load and use the model:
 
-[source,scala]
-----
+```scala
 import org.apache.spark.ml.classification.DecisionTreeClassificationModel
 import org.apache.spark.ml.feature.VectorAssembler
 
@@ -152,9 +154,9 @@ val predictions = model.transform(assembler.transform(t))
 
 // Show the probabilities
 predictions.select("probability", "prediction").show(false)
-----
+```
 
-=== Processing Cluster
+### Processing Cluster
 
 Verify the endpoint for anomaly detection:
 
