@@ -76,10 +76,9 @@ val samples = Seq(10, 200, -100)
 samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
 ```
 
-An example REPL session for the binomial logistic regression analysis with `spark-shell`:
+An example REPL session for the decision tree analysis with `spark-shell`:
 
 ```scala
-// Necessary imports
 import org.apache.spark.ml.classification.DecisionTreeClassifier
 import org.apache.spark.ml.feature.VectorAssembler
 
@@ -107,7 +106,7 @@ val samples = Seq(10, 200, -100)
 val seq = samples.map(sample => (0.0, sample))
 val t = spark.createDataFrame(seq).toDF("anomaly", "value")
 
-// Makes the prediction
+// Make the predictions
 val predictions = model.transform(assembler.transform(t))
 
 // Show the probabilities
