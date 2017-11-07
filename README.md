@@ -168,10 +168,10 @@ import java.io._
 import smile.classification.RandomForest
 
 // Deserialize the model
-val promise = using(new ObjectInputStream(new FileInputStream("rf.bin")))(_.close) { in =>
+val futureRf = using(new ObjectInputStream(new FileInputStream("rf.bin")))(_.close) { in =>
   in.readObject().asInstanceOf[RandomForest]
 }
-val rf = promise.get
+val rf = futureRf.get
 
 // Use the loaded model for the sample values
 val samples = Seq(10, 200, -100)
