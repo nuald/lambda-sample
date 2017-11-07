@@ -2,6 +2,11 @@
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
 
+The computing layers:
+
+ - Speed: based on the standard deviation
+ - Batch: Random Forest classification (using [Smile](https://haifengl.github.io/smile/) engine)
+
 # Table of Contents
 
 * [A Sample of Lambda architecture project](#a-sample-of-lambda-architecture-project)
@@ -23,6 +28,12 @@ Please install:
  - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
  - [Redis](https://redis.io/) in-memory data store
  - [SBT](http://www.scala-sbt.org/) build tool
+
+Optionally you may install:
+
+ - [Graphviz](http://www.graphviz.org/) visualization software
+
+Graphviz dot utility is used for the Decision Tree visualization in the sample REPL session.
 
 ## Usage
 
@@ -60,7 +71,7 @@ Verify the entries data store using CQL:
 
 Dump the entries into the CSV file:
 
-    $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv' with header=true;"
+    $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv';"
 
 An example REPL session (with `sbt console`) consists of 4 parts:
 
@@ -77,23 +88,25 @@ Read the CSV file and extract the features and the labels for the particular sen
 // Fix the borked REPL
 jline.TerminalFactory.get.init
 
+// Declare the class to get better visibility on the data
+case class Row(sensor: String, ts: String, value: Double, anomaly: Int)
+
 // Read the values from the CSV file
 val iter = scala.io.Source.fromFile("list.csv").getLines
 
-// Get the header
-val header = iter.next.split(",")
-
 // Get the data
-val l = iter.map(_.split(",")).toList
+val l = iter.map(_.split(",") match {
+  case Array(a, b, c, d) => Row(a, b, c.toDouble, d.toInt)
+}).toList
 
 // Get the sensor name for further analysis
-val name = l.head(header.indexOf("sensor"))
+val name = l.head.sensor
 
 // Features are multi-dimensional, labels are integers
-val mapping = (x: Array[String]) => (Array(x(2).toDouble), x(3).toInt)
+val mapping = (x: Row) => (Array(x.value), x.anomaly)
 
 // Extract the features and the labels for the given sensor
-val (features, labels) = l.filter(_(0) == name).map(mapping).unzip
+val (features, labels) = l.filter(_.sensor == name).map(mapping).unzip
 ```
 
 #### Fast analysis
@@ -114,21 +127,29 @@ samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
 Fit and save the Random Forest model:
 
 ```scala
+import scala.language.postfixOps
+
+import lib._
 import java.io._
+import scala.sys.process._
 import smile.classification.randomForest
 
 // Fit the model
 val rf = randomForest(features.toArray, labels.toArray)
 
-// Get the dot format for a sample tree (could be visualized with http://viz-js.com/)
-rf.getTrees()(0).dot
+// Get the dot diagram for a sample tree
+val desc = rf.getTrees()(0).dot
+
+// View the diagram (macOS example)
+s"echo $desc" #| "dot -Tpng" #| "open -a Preview -f" !
+
+// Set up the implicit for the usage() function
+implicit val log = akka.event.NoLogging
 
 // Serialize the model
-val fileOut = new FileOutputStream("rf.bin")
-val out = new ObjectOutputStream(fileOut)
-out.writeObject(rf)
-out.close
-fileOut.close
+using(new ObjectOutputStream(new FileOutputStream("rf.bin")))(_.close) { out =>
+  out.writeObject(rf)
+}
 ```
 
 #### Using the model
@@ -136,15 +157,21 @@ fileOut.close
 Load and use the model:
 
 ```scala
+// Fix the borked REPL
+jline.TerminalFactory.get.init
+
+// Set up the implicit for the usage() function
+implicit val log = akka.event.NoLogging
+
+import lib._
 import java.io._
 import smile.classification.RandomForest
 
 // Deserialize the model
-val fileIn = new FileInputStream("rf.bin")
-val in = new ObjectInputStream(fileIn)
-val rf = in.readObject().asInstanceOf[RandomForest]
-in.close
-fileIn.close
+val promise = using(new ObjectInputStream(new FileInputStream("rf.bin")))(_.close) { in =>
+  in.readObject().asInstanceOf[RandomForest]
+}
+val rf = promise.get
 
 // Use the loaded model for the sample values
 val samples = Seq(10, 200, -100)
