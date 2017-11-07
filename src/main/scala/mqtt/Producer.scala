@@ -20,6 +20,8 @@ object Producer {
   def props()(implicit materializer: ActorMaterializer) =
     Props(classOf[Producer], materializer)
 
+  case class SensorModel(name: String, isNormal: Boolean)
+
   private final case object Tick
 }
 
@@ -55,7 +57,8 @@ class Producer()(implicit materializer: ActorMaterializer)
     pathSingleSlash {
       get {
         val src = Source.fromFile("resources/producer/index.html").mkString
-        val template = ST(src, '$', '$').add("sensors", sensors)
+        val model = sensors.map(name => SensorModel(name, state(name) == "normal"))
+        val template = ST(src, '$', '$').add("sensors", model)
         template.render() match {
           case Success(dst) =>
             complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))

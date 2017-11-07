@@ -17,15 +17,15 @@
       <form>
       $sensors: { sensor |
         <div class="form-row form-inline mt-2">
-          <span class="col">$sensor$</span>
+          <span class="col">$sensor.name$</span>
           <label class="col-3 form-check-label">
-            <input class="form-check-input" type="radio" checked
-              name="$sensor$" value="normal">
+            <input class="form-check-input" type="radio" $if (sensor.isNormal)$checked$endif$
+              name="$sensor.name$" value="normal">
             Normal
           </label>
           <label class="col-3 form-check-label">
-            <input class="form-check-input" type="radio"
-              name="$sensor$" value="anomaly">
+            <input class="form-check-input" type="radio" $if (!sensor.isNormal)$checked$endif$
+              name="$sensor.name$" value="anomaly">
             Anomaly
           </label>
         </div>
