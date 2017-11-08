@@ -1,6 +1,7 @@
 package mqtt
 
 import akka.actor._
+import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import org.eclipse.paho.client.mqttv3._
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
@@ -9,6 +10,7 @@ import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
 
 import scala.concurrent.ExecutionContext
+import scala.util.Success
 
 object Consumer {
   def props(cluster: Cluster)(implicit materializer: ActorMaterializer) =
@@ -23,11 +25,12 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
   private val session = cluster.connect(conf.cassandra.keyspace)
 
-  val factory = new EntryFactory(conf.mqtt.salt)
+  val seal = new Sealed[Entry](conf.mqtt.salt)
   val client = new MqttClient(
     conf.mqtt.broker,
     MqttClient.generateClientId,
@@ -57,17 +60,13 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   override def receive: Receive = {
     case Arrived(message) =>
       log.debug(s"Message arrived: $message")
-      try {
-        val entry = factory.get(message.getPayload)
-
+      seal.fromBytes(message.getPayload) foreach { entry =>
         val statement = QueryBuilder.update(conf.cassandra.table)
           .`with`(QueryBuilder.set("value", entry.value))
           .and(QueryBuilder.set("anomaly", entry.anomaly))
           .where(QueryBuilder.eq("sensor", entry.sensor))
           .and(QueryBuilder.eq("ts", System.currentTimeMillis))
         session.execute(statement)
-      } catch {
-        case e: Throwable => log.error(e, "Consumer error")
       }
   }
 }

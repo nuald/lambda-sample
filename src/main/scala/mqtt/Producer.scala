@@ -1,6 +1,7 @@
 package mqtt
 
 import akka.actor._
+import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
@@ -31,10 +32,10 @@ class Producer()(implicit materializer: ActorMaterializer)
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-
-  val factory = new EntryFactory(conf.mqtt.salt)
+  val seal = new Sealed[Entry](conf.mqtt.salt)
   val client = new MqttClient(conf.mqtt.broker,
     MqttClient.generateClientId,
     new MemoryPersistence
@@ -96,16 +97,16 @@ class Producer()(implicit materializer: ActorMaterializer)
           case "normal" => r.nextInt(bound)
           case "anomaly" => bound + r.nextInt(bound / 2)
         })
-        val entry = factory.create(
+        val entry = Entry(
           sensor,
           value,
           if (sensorState == "anomaly") 1 else 0
         )
-        val token = msgTopic.publish(new MqttMessage(entry.toBytes))
-
-        val messageId = token.getMessageId
-
-        log.debug(s"Published message: id -> $messageId, payload -> $entry")
+        seal.toBytes(entry) foreach { bytes =>
+          val token = msgTopic.publish(new MqttMessage(bytes))
+          val messageId = token.getMessageId
+          log.debug(s"Published message: id -> $messageId, payload -> $entry")
+        }
       }
     case Connected(binding) =>
       httpBinding = Some(binding)

@@ -1,9 +1,11 @@
-package object lib {
+package lib
 
-  import akka.event.LoggingAdapter
-  import scala.util._
+import akka.event.LoggingAdapter
 
-  def using[A, B](resource: A)(cleanup: A => Unit)(doWork: A => B)(implicit log: LoggingAdapter): Try[B] = {
+import scala.util._
+
+object Common {
+  def using[A, B](resource: A)(cleanup: A => Unit)(doWork: A => B)(implicit logger: LoggingAdapter): Try[B] = {
     try {
       Success(doWork(resource))
     } catch {
@@ -15,7 +17,7 @@ package object lib {
           cleanup(resource)
         }
       } catch {
-        case e: Exception => log.error(e, "Cleanup failed")
+        case e: Exception => logger.error(e, "Cleanup failed")
       }
     }
   }

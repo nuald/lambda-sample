@@ -1,36 +1,21 @@
 package analyzer
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
+import akka.event.LoggingAdapter
 import akka.pattern.{ask, pipe}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import analyzer.Endpoint.Analyze
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.smile.SmileFactory
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import lib.CassandraClient.{Entry, Recent}
-import lib.Config
+import lib.{Config, Sealed}
 import redis.RedisClient
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.collection.JavaConverters._
+import scala.util.Success
 
-final case class SensorMeta(name: String, ts: java.util.Date, anomaly: Double) {
-  def toBytes: Array[Byte] = {
-    val mapper = new ObjectMapper(new SmileFactory) with ScalaObjectMapper
-    mapper.registerModule(DefaultScalaModule)
-    mapper.writeValueAsBytes(this)
-  }
-}
-
-object SensorMeta {
-  val mapper = new ObjectMapper(new SmileFactory) with ScalaObjectMapper
-  mapper.registerModule(DefaultScalaModule)
-
-  def get(bytes: Array[Byte]): SensorMeta = mapper.readValue[SensorMeta](bytes)
-}
+final case class SensorMeta(name: String, ts: java.util.Date, anomaly: Double) extends Serializable
 
 object FastAnalyzer {
   def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
@@ -59,8 +44,10 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
+  val seal = new Sealed[SensorMeta](conf.mqtt.salt)
   val r = RedisClient(conf.redis.address, conf.redis.port)
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
@@ -81,7 +68,9 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
               new java.util.Date(System.currentTimeMillis),
               analyze(entries)
             )
-            r.hset(conf.fastAnalyzer.key, sensor, meta.toBytes)
+            seal.toBytes(meta) foreach { bytes =>
+              r.hset(conf.fastAnalyzer.key, sensor, bytes)
+            }
             meta
           }
 

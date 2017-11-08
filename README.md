@@ -107,6 +107,7 @@ val mapping = (x: Row) => (Array(x.value), x.anomaly)
 
 // Extract the features and the labels for the given sensor
 val (features, labels) = l.filter(_.sensor == name).map(mapping).unzip
+
 ```
 
 #### Fast analysis
@@ -120,6 +121,7 @@ val values = features.flatten.take(200)
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
 samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
+
 ```
 
 #### Fitting the model
@@ -129,7 +131,7 @@ Fit and save the Random Forest model:
 ```scala
 import scala.language.postfixOps
 
-import lib._
+import lib.Common.using
 import java.io._
 import scala.sys.process._
 import smile.classification.randomForest
@@ -144,12 +146,13 @@ val desc = rf.getTrees()(0).dot
 s"echo $desc" #| "dot -Tpng" #| "open -a Preview -f" !
 
 // Set up the implicit for the usage() function
-implicit val log = akka.event.NoLogging
+implicit val logger = akka.event.NoLogging
 
 // Serialize the model
 using(new ObjectOutputStream(new FileOutputStream("rf.bin")))(_.close) { out =>
   out.writeObject(rf)
 }
+
 ```
 
 #### Using the model
@@ -161,9 +164,9 @@ Load and use the model:
 jline.TerminalFactory.get.init
 
 // Set up the implicit for the usage() function
-implicit val log = akka.event.NoLogging
+implicit val logger = akka.event.NoLogging
 
-import lib._
+import lib.Common.using
 import java.io._
 import smile.classification.RandomForest
 
@@ -180,6 +183,7 @@ samples.map { sample =>
   val prediction = rf.predict(Array(sample), probability)
   (prediction, probability)
 }
+
 ```
 
 ### Processing Cluster
@@ -191,6 +195,8 @@ Verify the endpoint for anomaly detection:
 Check the latest analyzer snapshot:
 
     $ redis-cli hgetall fast-analysis
+
+*NOTE: For deleting the shapshot please use: `$ redis-cli del fast-analysis`.*
 
 Verify the history of detecting anomalies using CQL:
 
