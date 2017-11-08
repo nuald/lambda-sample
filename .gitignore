@@ -1,7 +1,6 @@
 *.class
 *.log
 target/
-metastore_db/
 
 # User-specific stuff:
 .idea/**/workspace.xml

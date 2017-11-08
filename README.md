@@ -149,7 +149,7 @@ s"echo $desc" #| "dot -Tpng" #| "open -a Preview -f" !
 implicit val logger = akka.event.NoLogging
 
 // Serialize the model
-using(new ObjectOutputStream(new FileOutputStream("rf.bin")))(_.close) { out =>
+using(new ObjectOutputStream(new FileOutputStream("target/rf.bin")))(_.close) { out =>
   out.writeObject(rf)
 }
 
@@ -171,7 +171,7 @@ import java.io._
 import smile.classification.RandomForest
 
 // Deserialize the model
-val futureRf = using(new ObjectInputStream(new FileInputStream("rf.bin")))(_.close) { in =>
+val futureRf = using(new ObjectInputStream(new FileInputStream("target/rf.bin")))(_.close) { in =>
   in.readObject().asInstanceOf[RandomForest]
 }
 val rf = futureRf.get

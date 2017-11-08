@@ -13,7 +13,6 @@ import redis.RedisClient
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.collection.JavaConverters._
-import scala.util.Success
 
 final case class SensorMeta(name: String, ts: java.util.Date, anomaly: Double) extends Serializable
 

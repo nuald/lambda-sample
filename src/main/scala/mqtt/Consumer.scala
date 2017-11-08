@@ -10,7 +10,6 @@ import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
 
 import scala.concurrent.ExecutionContext
-import scala.util.Success
 
 object Consumer {
   def props(cluster: Cluster)(implicit materializer: ActorMaterializer) =
