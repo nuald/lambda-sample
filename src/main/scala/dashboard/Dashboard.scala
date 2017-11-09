@@ -15,6 +15,7 @@ import lib._
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scala.sys.process._
 
 object Dashboard {
   def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
@@ -48,6 +49,12 @@ class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMateriali
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }
+    } ~ path("perf") {
+      get {
+        val values = runHey
+        val json = mapper.writeValueAsString(values)
+        complete(HttpEntity(ContentTypes.`application/json`, json))
+      }
     }
 
   var httpBinding: Option[ServerBinding] = None
@@ -58,6 +65,29 @@ class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMateriali
     Some("dashboard/index.html"),
     self
   )
+
+  private val CsvPattern = raw"""([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+)""".r
+
+  def runHey: List[Double] = {
+    val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/"
+    val cmd = "hey -n 500 -c 10 -t 10"
+    val csvCmd = s"$cmd -o csv $url"
+    // First run, for JIT
+    Process(csvCmd) ! ProcessLogger(_ => ())
+    // Second run, for UI
+    val runCmd = s"$cmd $url"
+    log.info(s"Querying $url")
+    Process(runCmd).!
+    // Third run, for stats
+    val stream = csvCmd lineStream_! ProcessLogger(line => ())
+    val values = stream.flatMap { (line) => line match {
+        case CsvPattern(responseTime, dnsLookup, dns, requestWrite, responseDelay, responseRead) =>
+          Some(responseTime.toDouble * 1000)
+        case _ => None
+      }
+    }
+    values.toList
+  }
 
   override def postStop(): Unit = {
     httpBinding match {

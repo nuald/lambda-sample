@@ -55,9 +55,9 @@ class CassandraClient(cluster: Cluster)(implicit materializer: ActorMaterializer
       yield SensorMeta(
         row.getString("sensor"),
         row.getTimestamp("ts"),
-        row.getDouble("fastAnomaly"),
-        row.getDouble("fullAnomaly"),
-        row.getDouble("avgAnomaly")
+        row.getDouble("fast_anomaly"),
+        row.getDouble("full_anomaly"),
+        row.getDouble("avg_anomaly")
       )
   }
 

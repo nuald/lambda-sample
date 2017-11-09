@@ -1,3 +1,7 @@
+body {
+  padding-top: 3.5rem;
+}
+
 .axis path {
   fill: none;
   stroke: #777;
@@ -11,4 +15,47 @@
 
 .legend {
   font-size: 14px;
+}
+
+.box {
+  font: 10px sans-serif;
+}
+
+.box line,
+.box rect,
+.box circle {
+  fill: #fff;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.box .center {
+  /*stroke-dasharray: 3,3;*/
+}
+
+.box .outlier {
+  fill: none;
+  stroke: #ccc;
+  /* hide outliers */
+  visibility: hidden;
+}
+
+h6 {
+  padding-top: 9px;
+}
+
+.sidebar {
+  position: fixed;
+  top: 51px;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  padding: 20px 0;
+  overflow-x: hidden;
+  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+  border-right: 1px solid #eee;
+}
+
+.sidebar .nav-link {
+  border-radius: 0;
 }

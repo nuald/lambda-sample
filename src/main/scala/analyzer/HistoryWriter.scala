@@ -69,9 +69,9 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
         sealReader(bytes.toArray).toOption map { meta =>
           val notUpdatedYet = lastTimestamp(sensor) == meta.ts
           val statement = QueryBuilder.update(conf.historyWriter.table)
-            .`with`(QueryBuilder.set("fastAnomaly", meta.fastAnomaly))
-            .and(QueryBuilder.set("fullAnomaly", meta.fullAnomaly))
-            .and(QueryBuilder.set("avgAnomaly", meta.avgAnomaly))
+            .`with`(QueryBuilder.set("fast_anomaly", meta.fastAnomaly))
+            .and(QueryBuilder.set("full_anomaly", meta.fullAnomaly))
+            .and(QueryBuilder.set("avg_anomaly", meta.avgAnomaly))
             .where(QueryBuilder.eq("sensor", meta.name))
             .and(QueryBuilder.eq("ts", meta.ts))
           session.execute(statement)

@@ -10,7 +10,7 @@ $(function () {
     "hsl(30,  100%, 50%)" : null,
     "hsl(120, 100%, 20%)" : null
   };
-  var margins = {
+  var margin = {
     top: 50,
     right: 20,
     bottom: 0,
@@ -79,13 +79,13 @@ $(function () {
         }
       });
 
-      var xScale = d3.scaleLinear().range([margins.left, width - margins.right])
+      var xScale = d3.scaleLinear().range([margin.left, width - margin.right])
           .domain([d3.min(data, function(d) {
             return d[xKey];
           }), d3.max(data, function(d) {
             return d[xKey];
           })]),
-        yScale = d3.scaleLinear().range([height - margins.top, margins.bottom])
+        yScale = d3.scaleLinear().range([height - margin.top, margin.bottom])
           .domain([getYMin(), getYMax()]),
         xAxis = d3.axisBottom(xScale),
         yAxis = d3.axisLeft(yScale),
@@ -106,11 +106,11 @@ $(function () {
 
       vis.append("g")
         .attr("class", "x axis")
-        .attr("transform", "translate(0," + (height - margins.top) + ")")
+        .attr("transform", "translate(0," + (height - margin.top) + ")")
         .call(xAxis);
       vis.append("g")
         .attr("class", "y axis")
-        .attr("transform", "translate(" + (margins.left) + ",0)")
+        .attr("transform", "translate(" + (margin.left) + ",0)")
         .call(yAxis);
 
       dataGroup.forEach(function(d, i) {
@@ -146,6 +146,50 @@ $(function () {
       });
     });
   }
+
+
+  function drawBox(data) {
+    var vis = d3.select('#response'),
+      width = vis.attr('width'),
+      height = vis.attr('height');
+
+    var chart = d3.box()
+      .whiskers(iqr(1.5))
+      .width(15)
+      .height(height);
+
+    var min = d3.min(data), max = d3.max(data);
+
+    chart.domain([min, max]);
+
+    var svg = d3.select('#response')
+    .append("g").data([data])
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+      .call(chart);
+  }
+
+  // Returns a function to compute the interquartile range.
+  function iqr(k) {
+    return function(d, i) {
+      var q1 = d.quartiles[0],
+          q3 = d.quartiles[2],
+          iqr = (q3 - q1) * k,
+          i = -1,
+          j = d.length;
+      while (d[++i] < q1 - iqr);
+      while (d[--j] > q3 + iqr);
+      return [i, j];
+    };
+  }
+
+  $("#evaluate").click(function() {
+    d3.json("perf").get(function(error, data) {
+      if (error) {
+        throw error;
+      }
+      drawBox(data);
+    });
+  });
 
   d3.interval(function() {
     render('#entries', 'mqtt', 'sensor', 'ts', ['value']);

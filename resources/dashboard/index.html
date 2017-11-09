@@ -12,18 +12,48 @@
     <link rel="stylesheet" href="cdn/dashboard/main.css">
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-      <span class="navbar-brand">Dashboard</span>
-    </nav>
+    <header>
+      <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+        <span class="navbar-brand">Dashboard</span>
+      </nav>
+    </header>
     <div class="container-fluid">
-      <h6>Raw MQTT Data</h6>
-      <svg id="entries" width="900" height="300"></svg>
-      <h6>Anomaly Detection</h6>
-      <svg id="history" width="900" height="300"></svg>
+      <div class="row">
+        <nav class="col-sm-3 col-md-2 d-none d-sm-block bg-light sidebar">
+          <ul class="nav nav-pills flex-column" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" data-toggle="pill" href="#pills-timeline" role="tab"
+                 aria-controls="pills-timeline" aria-selected="true">Timeline</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="pill" href="#pills-perf" role="tab"
+                aria-controls="pills-perf" aria-selected="false">Performance</a>
+            </li>
+          </ul>
+        </nav>
+        <main role="main" class="col-sm-9 ml-sm-auto col-md-10 pt-3">
+          <div class="tab-content">
+            <div class="tab-pane fade show active" role="tabpanel" id="pills-timeline">
+              <h6>Raw MQTT Data</h6>
+              <svg id="entries" width="900" height="300"></svg>
+              <h6>Anomaly Detection</h6>
+              <svg id="history" width="900" height="300"></svg>
+            </div>
+            <div class="tab-pane fade" role="tabpanel" id="pills-perf">
+              <h6>Endpoint Response Time</h6>
+              <svg id="response" width="900" height="300" class="box"></svg>
+              <div>
+                <button type="button" class="btn btn-primary" id="evaluate">Evaluate</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
 
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="cdn/dashboard/box.js"></script>
     <script src="cdn/dashboard/main.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
