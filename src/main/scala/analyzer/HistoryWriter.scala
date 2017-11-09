@@ -55,7 +55,9 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
           if (force.exists(x => x)) {
             fastAnalyzer ! Analyze
           }
-        case Failure(t) => log.error("History writer error {}", t)
+        case Failure(t) =>
+          log.error("History writer error {}", t)
+          fastAnalyzer ! Analyze
       }
   }
 

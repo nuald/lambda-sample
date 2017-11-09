@@ -19,6 +19,7 @@ class CassandraConfig {
   @BeanProperty var address = ""
   @BeanProperty var keyspace = ""
   @BeanProperty var recent = 100
+  @BeanProperty var full = 10000
   @BeanProperty var table = ""
 }
 
@@ -50,6 +51,12 @@ class FastAnalyzerConfig {
   @BeanProperty var key = ""
 }
 
+class FullAnalyzerConfig {
+  @BeanProperty var timeout = 1000
+  @BeanProperty var period = 2000
+  @BeanProperty var key = ""
+}
+
 class HistoryWriterConfig {
   @BeanProperty var period = 1000
   @BeanProperty var table = ""
@@ -63,6 +70,7 @@ class Config {
   @BeanProperty var producer = new ProducerConfig
   @BeanProperty var endpoint = new EndpointConfig
   @BeanProperty var fastAnalyzer = new FastAnalyzerConfig
+  @BeanProperty var fullAnalyzer = new FullAnalyzerConfig
   @BeanProperty var historyWriter = new HistoryWriterConfig
 }
 

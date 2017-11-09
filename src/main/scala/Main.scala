@@ -1,6 +1,6 @@
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import analyzer.{Endpoint, FastAnalyzer, HistoryWriter}
+import analyzer.{Endpoint, FastAnalyzer, HistoryWriter, Trainer}
 import com.datastax.driver.core.Cluster
 
 import scala.concurrent.Await
@@ -22,6 +22,7 @@ object Main extends App {
   val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
   val fastAnalyzer = system.actorOf(FastAnalyzer.props(cassandraClient), "fast-analyzer")
   system.actorOf(Endpoint.props(fastAnalyzer), "endpoint")
+  system.actorOf(Trainer.props(cassandraClient), "trainer")
   system.actorOf(HistoryWriter.props(cluster, fastAnalyzer), "history-writer")
 
   system.actorOf(Dashboard.props(cassandraClient), "dashboard")

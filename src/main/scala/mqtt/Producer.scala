@@ -77,7 +77,7 @@ class Producer()(implicit materializer: ActorMaterializer)
     self
   )
 
-  override def postStop():Unit = {
+  override def postStop(): Unit = {
     httpBinding match {
       case Some(x) => x.unbind
       case None =>

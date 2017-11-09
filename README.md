@@ -192,9 +192,10 @@ Verify the endpoint for anomaly detection:
 
     $ curl http://localhost:8082/
 
-Check the latest analyzer snapshot:
+Check the latest analyzer snapshots:
 
     $ redis-cli hgetall fast-analysis
+    $ redis-cli hgetall full-analysis
 
 *NOTE: For deleting the shapshot please use: `$ redis-cli del fast-analysis`.*
 
