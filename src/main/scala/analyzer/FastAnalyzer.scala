@@ -46,7 +46,7 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  val seal = new Sealed[SensorMeta](conf.mqtt.salt)
+  private val sealWriter = new Sealed[SensorMeta](conf.redis.salt).writer
   val r = RedisClient(conf.redis.address, conf.redis.port)
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
@@ -67,7 +67,7 @@ class FastAnalyzer(cassandraClient: ActorRef)(implicit materializer: ActorMateri
               new java.util.Date(System.currentTimeMillis),
               analyze(entries)
             )
-            seal.toBytes(meta) foreach { bytes =>
+            sealWriter(meta) foreach { bytes =>
               r.hset(conf.fastAnalyzer.key, sensor, bytes)
             }
             meta

@@ -35,7 +35,7 @@ class Producer()(implicit materializer: ActorMaterializer)
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  val seal = new Sealed[Entry](conf.mqtt.salt)
+  private val sealWriter = new Sealed[Entry](conf.mqtt.salt).writer
   val client = new MqttClient(conf.mqtt.broker,
     MqttClient.generateClientId,
     new MemoryPersistence
@@ -102,7 +102,7 @@ class Producer()(implicit materializer: ActorMaterializer)
           value,
           if (sensorState == "anomaly") 1 else 0
         )
-        seal.toBytes(entry) foreach { bytes =>
+        sealWriter(entry) foreach { bytes =>
           val token = msgTopic.publish(new MqttMessage(bytes))
           val messageId = token.getMessageId
           log.debug(s"Published message: id -> $messageId, payload -> $entry")

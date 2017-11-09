@@ -25,6 +25,7 @@ class CassandraConfig {
 class RedisConfig {
   @BeanProperty var address = ""
   @BeanProperty var port = 6379
+  @BeanProperty var salt = ""
 }
 
 class DashboardConfig {

@@ -29,7 +29,7 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   private val conf = Config.get
   private val session = cluster.connect(conf.cassandra.keyspace)
 
-  val seal = new Sealed[Entry](conf.mqtt.salt)
+  private val sealReader = new Sealed[Entry](conf.mqtt.salt).reader
   val client = new MqttClient(
     conf.mqtt.broker,
     MqttClient.generateClientId,
@@ -59,7 +59,7 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   override def receive: Receive = {
     case Arrived(message) =>
       log.debug(s"Message arrived: $message")
-      seal.fromBytes(message.getPayload) foreach { entry =>
+      sealReader(message.getPayload) foreach { entry =>
         val statement = QueryBuilder.update(conf.cassandra.table)
           .`with`(QueryBuilder.set("value", entry.value))
           .and(QueryBuilder.set("anomaly", entry.anomaly))

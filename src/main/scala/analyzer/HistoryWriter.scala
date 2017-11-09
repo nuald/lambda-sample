@@ -32,7 +32,7 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  val seal = new Sealed[SensorMeta](conf.mqtt.salt)
+  private val sealReader = new Sealed[SensorMeta](conf.redis.salt).reader
   val r = RedisClient(conf.redis.address, conf.redis.port)
   private val session = cluster.connect(conf.cassandra.keyspace)
 
@@ -63,7 +63,7 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
     bytesOpt <- r.hget(conf.fastAnalyzer.key, sensor)
   } yield {
     val force = bytesOpt map { bytes =>
-      seal.fromBytes(bytes.toArray).toOption map { meta =>
+      sealReader(bytes.toArray).toOption map { meta =>
         val notUpdatedYet = lastTimestamp(sensor) == meta.ts
         val statement = QueryBuilder.update(conf.historyWriter.table)
           .`with`(QueryBuilder.set("anomaly", meta.anomaly))

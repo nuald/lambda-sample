@@ -26,27 +26,34 @@ class Sealed[T <: Serializable](salt: String)(implicit logger: LoggingAdapter) {
     cipher
   }
 
-  def toBytes(entry: T): Try[Array[Byte]] = {
-    val cipher = getCipher(Cipher.ENCRYPT_MODE)
-    val sealedObject = new SealedObject(entry, cipher)
-    using(new ByteArrayOutputStream())(_.close) { ostream =>
-      using(new ObjectOutputStream(
-        new CipherOutputStream(ostream, cipher)
-      ))(_.close) { outputStream =>
-        outputStream.writeObject(sealedObject)
+  class Reader {
+    def apply(bytes: Array[Byte]): Try[T] = {
+      val cipher = getCipher(Cipher.DECRYPT_MODE)
+      using(new ObjectInputStream(
+        new CipherInputStream(
+          new ByteArrayInputStream(bytes), cipher
+        )))(_.close) { inputStream =>
+        val sealedObject = inputStream.readObject().asInstanceOf[SealedObject]
+        sealedObject.getObject(cipher).asInstanceOf[T]
       }
-      ostream.toByteArray
     }
   }
 
-  def fromBytes(bytes: Array[Byte]): Try[T] = {
-    val cipher = getCipher(Cipher.DECRYPT_MODE)
-    using(new ObjectInputStream(
-      new CipherInputStream(
-        new ByteArrayInputStream(bytes), cipher
-      )))(_.close) { inputStream =>
-      val sealedObject = inputStream.readObject().asInstanceOf[SealedObject]
-      sealedObject.getObject(cipher).asInstanceOf[T]
+  class Writer {
+    def apply(entry: T): Try[Array[Byte]] = {
+      val cipher = getCipher(Cipher.ENCRYPT_MODE)
+      val sealedObject = new SealedObject(entry, cipher)
+      using(new ByteArrayOutputStream())(_.close) { ostream =>
+        using(new ObjectOutputStream(
+          new CipherOutputStream(ostream, cipher)
+        ))(_.close) { outputStream =>
+          outputStream.writeObject(sealedObject)
+        }
+        ostream.toByteArray
+      }
     }
   }
+
+  val reader = new Reader()
+  val writer = new Writer()
 }

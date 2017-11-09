@@ -11,9 +11,9 @@ class EntrySpec extends FlatSpec with Matchers {
     val sensor = "sensor 1"
     val value = 123
     val anomaly = 0
-    val seal = new Sealed[Entry]("salt")
-    val bytes1 = seal.toBytes(mqtt.Entry(sensor, value, anomaly)).get
-    val bytes2 = seal.toBytes(mqtt.Entry(sensor, value, anomaly)).get
+    val sealWriter = new Sealed[Entry]("salt").writer
+    val bytes1 = sealWriter(mqtt.Entry(sensor, value, anomaly)).get
+    val bytes2 = sealWriter(mqtt.Entry(sensor, value, anomaly)).get
     bytes1 should contain theSameElementsInOrderAs bytes2
   }
 
@@ -22,9 +22,12 @@ class EntrySpec extends FlatSpec with Matchers {
     val value = 123
     val anomaly = 0
     val seal = new Sealed[Entry]("salt")
+    val sealWriter = seal.writer
+    val sealReader = seal.reader
+
     val originalEntry = mqtt.Entry(sensor, value, anomaly)
-    val bytes = seal.toBytes(originalEntry).get
-    val entry = seal.fromBytes(bytes).get
+    val bytes = sealWriter(originalEntry).get
+    val entry = sealReader(bytes).get
     entry should be (originalEntry)
   }
 }
