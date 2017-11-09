@@ -61,23 +61,26 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
       }
   }
 
-  def needUpdate(sensor: String): Future[Boolean] = for {
-    bytesOpt <- r.hget(conf.fastAnalyzer.key, sensor)
-  } yield {
-    val force = bytesOpt map { bytes =>
-      sealReader(bytes.toArray).toOption map { meta =>
-        val notUpdatedYet = lastTimestamp(sensor) == meta.ts
-        val statement = QueryBuilder.update(conf.historyWriter.table)
-          .`with`(QueryBuilder.set("anomaly", meta.anomaly))
-          .where(QueryBuilder.eq("sensor", meta.name))
-          .and(QueryBuilder.eq("ts", meta.ts))
-        session.execute(statement)
-        lastTimestamp(sensor) = meta.ts
-        notUpdatedYet
+  def needUpdate(sensor: String): Future[Boolean] =
+    for {
+      bytesOpt <- r.hget(conf.fastAnalyzer.key, sensor)
+    } yield {
+      val force = bytesOpt map { bytes =>
+        sealReader(bytes.toArray).toOption map { meta =>
+          val notUpdatedYet = lastTimestamp(sensor) == meta.ts
+          val statement = QueryBuilder.update(conf.historyWriter.table)
+            .`with`(QueryBuilder.set("fastAnomaly", meta.fastAnomaly))
+            .and(QueryBuilder.set("fullAnomaly", meta.fullAnomaly))
+            .and(QueryBuilder.set("avgAnomaly", meta.avgAnomaly))
+            .where(QueryBuilder.eq("sensor", meta.name))
+            .and(QueryBuilder.eq("ts", meta.ts))
+          session.execute(statement)
+          lastTimestamp(sensor) = meta.ts
+          notUpdatedYet
+        }
       }
+      force.flatten.getOrElse(true)
     }
-    force.flatten.getOrElse(true)
-  }
 
   system.scheduler.schedule(0.millis, conf.historyWriter.period.millis) {
     self ! Tick

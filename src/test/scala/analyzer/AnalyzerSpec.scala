@@ -48,7 +48,7 @@ class AnalyzerSpec extends FlatSpec with Matchers {
 
     // Use the fast analyzer for the sample values
     val samples = Seq(10, 200, -100)
-    samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values)) match {
+    samples.map(sample => analyzer.Analyzer.getAnomalyFast(sample, values)) match {
       case Seq(notAnomaly, anomaly, risky) =>
         notAnomaly should be (0)
         anomaly should be (1)
@@ -57,6 +57,22 @@ class AnalyzerSpec extends FlatSpec with Matchers {
   }
 
   it should "run the full analysis correctly" in {
+    val f = fixture
+
+    // Fit the model
+    val rf = randomForest(f.features.toArray, f.labels.toArray)
+
+    // Use the full analyzer for the sample values
+    val samples = Seq(10, 200, -100)
+    samples.map(sample => analyzer.Analyzer.getAnomalyFull(sample, rf)) match {
+      case Seq(notAnomaly, anomaly, risky) =>
+        notAnomaly should be (0.1 +- 0.1)
+        anomaly should be (0.9 +- 0.1)
+        risky should be (0.5 +- 0.5)
+    }
+  }
+
+  it should "run the REPL full analysis correctly" in {
     val f = fixture
 
     // Fit the model

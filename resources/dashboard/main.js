@@ -1,4 +1,5 @@
 $(function () {
+  var dashPool = [null, "1", "3, 3"];
   var colorPool = {
     "hsl(210, 100%, 50%)" : null,
     "hsl(240, 100%, 50%)" : null,
@@ -33,7 +34,7 @@ $(function () {
     return colorMap[key];
   }
 
-  function render(graph, src, nameKey, xKey, yKey) {
+  function render(graph, src, nameKey, xKey, yKeys) {
     var vis = d3.select(graph),
       width = vis.attr('width'),
       height = vis.attr('height');
@@ -43,8 +44,20 @@ $(function () {
         throw error;
       }
 
-      var min = d3.min(data, function(d) { return d[yKey];}),
-        max = d3.max(data, function(d) { return d[yKey];}),
+      function getYMin() {
+        return d3.min(data, function(d) {
+          return d3.min(yKeys, function(yKey) { return d[yKey] });
+        });
+      }
+
+      function getYMax() {
+        return d3.max(data, function(d) {
+          return d3.max(yKeys, function(yKey) { return d[yKey] });
+        });
+      }
+
+      var min = getYMin(),
+        max = getYMax(),
         offset = max - min,
         currentOffset = 0,
         offsetMap = {};
@@ -52,15 +65,19 @@ $(function () {
       function getOffset(key) {
         if (typeof offsetMap[key] === 'undefined') {
           offsetMap[key] = currentOffset;
-          currentOffset += offset;
+          currentOffset += 1.1 * offset;
         }
         return offsetMap[key];
       }
 
-      for (var i = 0; i < data.length; ++i) {
-        var entry = data[i];
-        entry[yKey] += getOffset(entry[nameKey]);
-      }
+      yKeys.forEach(function(yKey, j) {
+        for (var i = 0; i < data.length; ++i) {
+          var entry = data[i];
+          var offset = getOffset(entry[nameKey]);
+          var m = offsetMap;
+          entry[yKey] += offset;
+        }
+      });
 
       var xScale = d3.scaleLinear().range([margins.left, width - margins.right])
           .domain([d3.min(data, function(d) {
@@ -69,21 +86,15 @@ $(function () {
             return d[xKey];
           })]),
         yScale = d3.scaleLinear().range([height - margins.top, margins.bottom])
-          .domain([d3.min(data, function(d) {
-            return d[yKey];
-          }), d3.max(data, function(d) {
-            return d[yKey];
-          })]),
+          .domain([getYMin(), getYMax()]),
         xAxis = d3.axisBottom(xScale),
         yAxis = d3.axisLeft(yScale),
-        lineGen = d3.line()
-          .x(function(d) {
-            return xScale(d[xKey]);
-          })
-          .y(function(d) {
-            return yScale(d[yKey]);
-          })
-          .curve(d3.curveLinear),
+        lineGenForKey = function(yKey) {
+          return d3.line()
+            .x(function(d) { return xScale(d[xKey]); })
+            .y(function(d) { return yScale(d[yKey]); })
+            .curve(d3.curveLinear)
+        },
         dataGroup = d3.nest()
           .key(function(d) {
             return d[nameKey];
@@ -105,12 +116,16 @@ $(function () {
       dataGroup.forEach(function(d, i) {
         var color = getColor(d.key);
 
-        vis.append('path')
-          .attr('class', 'graph')
-          .attr('d', lineGen(d.values))
-          .attr('stroke', color)
-          .attr('stroke-width', 2)
-          .attr('fill', 'none');
+        yKeys.forEach(function(yKey, i) {
+          var lineGen = lineGenForKey(yKey);
+          vis.append('path')
+            .attr('class', 'graph')
+            .attr('d', lineGen(d.values))
+            .attr('stroke', color)
+            .attr('stroke-width', 2)
+            .attr('stroke-dasharray', dashPool[i])
+            .attr('fill', 'none');
+        });
 
         var legend = vis.append('g')
           .attr('class', 'legend')
@@ -133,7 +148,7 @@ $(function () {
   }
 
   d3.interval(function() {
-    render('#entries', 'mqtt', 'sensor', 'ts', 'value');
-    render('#history', 'history', 'name', 'ts', 'anomaly');
+    render('#entries', 'mqtt', 'sensor', 'ts', ['value']);
+    render('#history', 'history', 'name', 'ts', ['avgAnomaly', 'fullAnomaly', 'fastAnomaly']);
   }, 1000);
 });

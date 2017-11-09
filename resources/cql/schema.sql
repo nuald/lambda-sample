@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS sandbox.entry(
 CREATE TABLE IF NOT EXISTS sandbox.analysis(
   sensor text,
   ts timestamp,
-  anomaly double,
+  fastAnomaly double,
+  fullAnomaly double,
+  avgAnomaly double,
   PRIMARY KEY ((sensor), ts)
 ) WITH CLUSTERING ORDER BY (ts DESC);
