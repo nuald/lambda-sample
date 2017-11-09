@@ -147,24 +147,33 @@ $(function () {
     });
   }
 
+  var perfTranslateX = 0, perfChartWidth = 15;
 
   function drawBox(data) {
+    var margin = {
+      top: 10,
+      right: 0,
+      bottom: 10,
+      left: 0
+    };
     var vis = d3.select('#response'),
       width = vis.attr('width'),
       height = vis.attr('height');
 
     var chart = d3.box()
       .whiskers(iqr(1.5))
-      .width(15)
-      .height(height);
+      .width(perfChartWidth)
+      .height(height - margin.top - margin.bottom);
 
     var min = d3.min(data), max = d3.max(data);
 
     chart.domain([min, max]);
 
+    var newX = width - perfChartWidth - perfTranslateX;
+    perfTranslateX += 4 * perfChartWidth;
     var svg = d3.select('#response')
     .append("g").data([data])
-      .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+      .attr("transform", "translate(" + newX + "," + margin.top + ")")
       .call(chart);
   }
 
@@ -183,11 +192,13 @@ $(function () {
   }
 
   $("#evaluate").click(function() {
+    $('#response').LoadingOverlay('show');
     d3.json("perf").get(function(error, data) {
       if (error) {
         throw error;
       }
       drawBox(data);
+      $('#response').LoadingOverlay('hide');
     });
   });
 
@@ -195,4 +206,12 @@ $(function () {
     render('#entries', 'mqtt', 'sensor', 'ts', ['value']);
     render('#history', 'history', 'name', 'ts', ['avgAnomaly', 'fullAnomaly', 'fastAnomaly']);
   }, 1000);
+
+  $.LoadingOverlaySetup({
+    color           : "rgba(230, 230, 230, 0.8)",
+    maxSize         : "60px",
+    minSize         : "20px",
+    resizeInterval  : 0,
+    size            : "50%"
+  });
 });

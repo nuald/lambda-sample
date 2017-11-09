@@ -30,14 +30,12 @@ body {
 }
 
 .box .center {
-  /*stroke-dasharray: 3,3;*/
+  stroke-dasharray: 3,3;
 }
 
 .box .outlier {
   fill: none;
   stroke: #ccc;
-  /* hide outliers */
-  visibility: hidden;
 }
 
 h6 {
@@ -58,4 +56,8 @@ h6 {
 
 .sidebar .nav-link {
   border-radius: 0;
+}
+
+#response {
+  margin-bottom: 9px;
 }
