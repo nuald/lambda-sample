@@ -3,6 +3,7 @@ package analyzer
 import akka.actor._
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
+import analyzer.Analyzer.Registration
 import analyzer.Endpoint.Analyze
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
@@ -15,14 +16,14 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
 object HistoryWriter {
-  def props(cluster: Cluster, fastAnalyzer: ActorRef)
+  def props(cluster: Cluster, redisClient: RedisClient)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[HistoryWriter], cluster, fastAnalyzer, materializer)
+    Props(classOf[HistoryWriter], cluster, redisClient, materializer)
 
   private final case object Tick
 }
 
-class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
+class HistoryWriter(cluster: Cluster, redisClient: RedisClient)
                    (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import HistoryWriter._
@@ -33,12 +34,14 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
 
   private val conf = Config.get
   private val sealReader = new Sealed[SensorMeta](conf.redis.salt).reader
-  val r = RedisClient(conf.redis.address, conf.redis.port)
   private val session = cluster.connect(conf.cassandra.keyspace)
 
   private val lastTimestamp = collection.mutable.Map(
     conf.mqtt.sensors.asScala.map(a => (a, new java.util.Date())): _*
   )
+
+  private var analyzers = IndexedSeq.empty[ActorRef]
+  var jobCounter = 0
 
   override def postStop(): Unit = {
     session.close()
@@ -46,24 +49,39 @@ class HistoryWriter(cluster: Cluster, fastAnalyzer: ActorRef)
 
   override def receive: Receive = {
     case Tick =>
-      val forceAnalyze =
+      val doNeedUpdate =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield needUpdate(sensor)
 
-      Future.sequence(forceAnalyze).onComplete {
+      Future.sequence(doNeedUpdate).onComplete {
         case Success(force) =>
           if (force.exists(x => x)) {
-            fastAnalyzer ! Analyze
+            forceAnalyze()
           }
         case Failure(t) =>
           log.error("History writer error {}", t)
-          fastAnalyzer ! Analyze
+          forceAnalyze()
       }
+
+    case Registration if !analyzers.contains(sender()) =>
+      context watch sender()
+      analyzers = analyzers :+ sender()
+
+    case Terminated(a) =>
+      analyzers = analyzers.filterNot(_ == a)
+  }
+
+  def forceAnalyze(): Unit = {
+    if (analyzers.nonEmpty) {
+      jobCounter += 1
+      val analyzer = analyzers(jobCounter % analyzers.size)
+      analyzer ! Analyze
+    }
   }
 
   def needUpdate(sensor: String): Future[Boolean] =
     for {
-      bytesOpt <- r.hget(conf.fastAnalyzer.key, sensor)
+      bytesOpt <- redisClient.hget(conf.fastAnalyzer.key, sensor)
     } yield {
       val force = bytesOpt map { bytes =>
         sealReader(bytes.toArray).toOption map { meta =>

@@ -22,6 +22,14 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="SBT: ch.qos.logback:logback-classic:1.2.3:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.uncommons.maths:uncommons-maths:1.2.2a:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.agrona:agrona:0.9.5:jar" level="project" />
+    <orderEntry type="library" name="SBT: io.netty:netty:3.10.6.Final:jar" level="project" />
+    <orderEntry type="library" name="SBT: io.aeron:aeron-driver:1.2.5:jar" level="project" />
+    <orderEntry type="library" name="SBT: io.aeron:aeron-client:1.2.5:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-remote_2.12:2.4.19:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-protobuf_2.12:2.4.19:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-cluster_2.12:2.4.19:jar" level="project" />
     <orderEntry type="library" name="SBT: org.scala-stm:scala-stm_2.12:0.8:jar" level="project" />
     <orderEntry type="library" name="SBT: com.github.etaty:rediscala_2.12:1.8.0:jar" level="project" />
     <orderEntry type="library" name="SBT: org.slf4j:slf4j-api:1.7.25:jar" level="project" />
@@ -87,5 +95,6 @@
     <orderEntry type="library" name="SBT: org.swinglabs:swingx:1.6.1:jar" level="project" />
     <orderEntry type="library" name="SBT: xmlpull:xmlpull:1.1.3.1:jar" level="project" />
     <orderEntry type="library" name="SBT: xpp3:xpp3_min:1.1.4c:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.github.scopt:scopt_2.12:3.7.0:jar" level="project" />
   </component>
 </module>

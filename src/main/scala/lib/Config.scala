@@ -1,8 +1,6 @@
 package lib
 
-import akka.actor.ActorSystem
-
-import com.typesafe.config.ConfigBeanFactory
+import com.typesafe.config.{ConfigBeanFactory, ConfigFactory}
 
 import scala.beans.BeanProperty
 
@@ -75,8 +73,8 @@ class Config {
 }
 
 object Config {
-  def get()(implicit system: ActorSystem): Config = {
-    val config = system.settings.config
+  def get: Config = {
+    val config = ConfigFactory.load()
     ConfigBeanFactory.create(config.getConfig("config"), classOf[Config])
   }
 }

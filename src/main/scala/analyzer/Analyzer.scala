@@ -1,6 +1,8 @@
 package analyzer
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, RootActorPath}
+import akka.cluster.{Cluster, Member, MemberStatus}
+import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.event.LoggingAdapter
 import akka.pattern.{ask, pipe}
 import akka.stream.ActorMaterializer
@@ -24,8 +26,8 @@ final case class SensorMeta(
 ) extends Serializable
 
 object Analyzer {
-  def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
-    Props(classOf[Analyzer], cassandraClient, materializer)
+  def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =
+    Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
 
   def getAnomalyFast(value: Double, values: List[Double]): Double = {
     val size = values.size
@@ -53,20 +55,27 @@ object Analyzer {
       probability.min
     }
   }
+
+  final case object Registration
 }
 
-class Analyzer(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer)
+class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
+  import Analyzer._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
 
+  val cluster = Cluster(context.system)
+
   private val conf = Config.get
   private val metaWriter = new Sealed[SensorMeta](conf.redis.salt).writer
   private val rfReader = new Sealed[RandomForest](conf.redis.salt).reader
-  val r = RedisClient(conf.redis.address, conf.redis.port)
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
+
+  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
+  override def postStop(): Unit = cluster.unsubscribe(self)
 
   def analyze(sensor: String, entries: List[Entry], rfOpt: Option[RandomForest]): SensorMeta = {
     val values = entries.map(_.value)
@@ -90,7 +99,7 @@ class Analyzer(cassandraClient: ActorRef)(implicit materializer: ActorMaterializ
 
   def fetchModel(sensor: String): Future[Option[RandomForest]] =
     for {
-      bytesOpt <- r.hget(conf.fullAnalyzer.key, sensor)
+      bytesOpt <- redisClient.hget(conf.fullAnalyzer.key, sensor)
     } yield {
       val rfOpt = bytesOpt map { bytes =>
         rfReader(bytes.toArray).toOption
@@ -108,11 +117,25 @@ class Analyzer(cassandraClient: ActorRef)(implicit materializer: ActorMaterializ
           } yield {
             val meta = analyze(sensor, entries, rf)
             metaWriter(meta) foreach { bytes =>
-              r.hset(conf.fastAnalyzer.key, sensor, bytes)
+              redisClient.hset(conf.fastAnalyzer.key, sensor, bytes)
             }
             meta
           }
 
       Future.sequence(futures) pipeTo sender()
+
+    case state: CurrentClusterState =>
+      state.members.filter(_.status == MemberStatus.Up) foreach register
+
+    case MemberUp(m) => register(m)
+  }
+
+  def register(member: Member): Unit = {
+    if (member.hasRole("frontend")) {
+      context.actorSelection(RootActorPath(member.address) / "user" / "endpoint") !
+        Registration
+      context.actorSelection(RootActorPath(member.address) / "user" / "history-writer") !
+        Registration
+    }
   }
 }

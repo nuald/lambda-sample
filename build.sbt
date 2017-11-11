@@ -13,6 +13,8 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.1",
   "com.github.etaty" %% "rediscala" % "1.8.0",
   "com.github.haifengl" %% "smile-scala" % "1.4.0",
+  "com.github.scopt" %% "scopt" % "3.7.0",
+  "com.typesafe.akka" %% "akka-cluster" % "2.4.19",
   "com.typesafe.akka" %% "akka-http" % "10.0.10",
   "com.typesafe.akka" %% "akka-slf4j" % "2.4.19",
   "org.clapper" %% "scalasti" % "3.0.1",

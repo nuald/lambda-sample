@@ -15,13 +15,13 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.JavaConverters._
 
 object Trainer {
-  def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
-    Props(classOf[Trainer], cassandraClient, materializer)
+  def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =
+    Props(classOf[Trainer], cassandraClient, redisClient, materializer)
 
   private final case object Tick
 }
 
-class Trainer(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer)
+class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Trainer._
 
@@ -30,7 +30,6 @@ class Trainer(cassandraClient: ActorRef)(implicit materializer: ActorMaterialize
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  val r = RedisClient(conf.redis.address, conf.redis.port)
   private val sealWriter = new Sealed[RandomForest](conf.redis.salt).writer
   implicit val timeout: Timeout = Timeout(conf.fullAnalyzer.timeout.millis)
 
@@ -54,7 +53,7 @@ class Trainer(cassandraClient: ActorRef)(implicit materializer: ActorMaterialize
           } yield {
             val rf = createFittedModel(entries)
             sealWriter(rf) foreach { bytes =>
-              r.hset(conf.fullAnalyzer.key, sensor, bytes)
+              redisClient.hset(conf.fullAnalyzer.key, sensor, bytes)
             }
           }
 
