@@ -147,34 +147,39 @@ $(function () {
     });
   }
 
-  var perfTranslateX = 0, perfChartWidth = 15;
+  var perfChartWidth = 15, perfOffsetX = perfChartWidth * 4;
+  var perfHistory = [];
+
+  var perfMargin = {
+    top: 10,
+    right: 0,
+    bottom: 10,
+    left: 20
+  };
+  var vis = d3.select('#response'),
+    width = vis.attr('width'),
+    height = vis.attr('height');
+
+  var chart = d3.box()
+    .whiskers(iqr(1.5))
+    .width(perfChartWidth)
+    .height(height - perfMargin.top - perfMargin.bottom);
 
   function drawBox(data) {
-    var margin = {
-      top: 10,
-      right: 0,
-      bottom: 10,
-      left: 0
-    };
-    var vis = d3.select('#response'),
-      width = vis.attr('width'),
-      height = vis.attr('height');
+    vis.selectAll("g").remove();
 
-    var chart = d3.box()
-      .whiskers(iqr(1.5))
-      .width(perfChartWidth)
-      .height(height - margin.top - margin.bottom);
-
-    var min = d3.min(data), max = d3.max(data);
+    var min = d3.min(data, function(d) { return d3.min(d); });
+    var max = d3.max(data, function(d) { return d3.max(d); });
 
     chart.domain([min, max]);
 
-    var newX = width - perfChartWidth - perfTranslateX;
-    perfTranslateX += 4 * perfChartWidth;
-    var svg = d3.select('#response')
-    .append("g").data([data])
-      .attr("transform", "translate(" + newX + "," + margin.top + ")")
-      .call(chart);
+    for (var i = 0; i < data.length; ++i) {
+      var chartData = data[i];
+      var translateX = perfMargin.left + i * perfOffsetX;
+      vis.append("g").data([chartData])
+        .attr("transform", "translate(" + translateX + "," + perfMargin.top + ")")
+        .call(chart);
+    }
   }
 
   // Returns a function to compute the interquartile range.
@@ -197,7 +202,8 @@ $(function () {
       if (error) {
         throw error;
       }
-      drawBox(data);
+      perfHistory.unshift(data);
+      drawBox(perfHistory);
       $('#response').LoadingOverlay('hide');
     });
   });

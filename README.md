@@ -31,9 +31,9 @@ Please install:
 
 Optionally you may install:
 
- - [Graphviz](http://www.graphviz.org/) visualization software
-
-Graphviz dot utility is used for the Decision Tree visualization in the sample REPL session.
+ - [Graphviz](http://www.graphviz.org/) visualization software (its dot utility is used for
+ the Decision Tree visualization in the sample REPL session)
+ - [Hey](https://github.com/rakyll/hey) HTTP load generator (used for the performance tests)
 
 ## Usage
 
