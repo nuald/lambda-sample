@@ -27,14 +27,14 @@ object Main extends App {
       text(s"Cassandra host (${ conf.cassandra.address } by default)")
 
     opt[String]('r', "redis").optional().valueName("<Redis host>").
-      action( (x, c) => c.copy(cassandraHost = x) ).
+      action( (x, c) => c.copy(redisHost = x) ).
       text(s"Redis host (${ conf.redis.address } by default)")
 
     opt[Unit]("client").action( (_, c) =>
       c.copy(isClient = true) ).text("Cluster client mode")
 
     opt[String]('p', "port").optional().valueName("<port>").
-      action( (x, c) => c.copy(cassandraHost = x) ).
+      action( (x, c) => c.copy(port = x.toInt) ).
       text(s"Local port ($DefaultPort by default)")
   }
 
