@@ -34,12 +34,13 @@ Optionally you may install:
  - [Graphviz](http://www.graphviz.org/) visualization software (its dot utility is used for
  the Decision Tree visualization in the sample REPL session)
  - [Hey](https://github.com/rakyll/hey) HTTP load generator (used for the performance tests)
+ - [Ammonite](http://ammonite.io/#ScalaScripts) Scala script runner (used for the clustering)
 
 ## Usage
 
 Configure the Cassandra data store:
 
-    $ cqlsh -f resources/cql/schema.sql
+    $ cqlsh -f resources/cassandra/schema.sql
 
 *NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`.*
 
@@ -202,3 +203,7 @@ Check the latest analyzer snapshots:
 Verify the history of detecting anomalies using CQL:
 
     $ cqlsh -e "select * from sandbox.analysis limit 10;"
+
+Run the servers (please use the external IP):
+
+    $ ./start.sc server --host <host>

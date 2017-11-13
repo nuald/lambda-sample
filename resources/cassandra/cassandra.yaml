@@ -1,0 +1,24 @@
+rpc_address: `host`
+listen_address: `host`
+
+commitlog_sync: periodic
+commitlog_sync_period_in_ms: 10000
+
+partitioner: org.apache.cassandra.dht.Murmur3Partitioner
+
+endpoint_snitch: SimpleSnitch
+
+seed_provider:
+    - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+      parameters:
+          - seeds: "`host`"
+
+num_tokens: 256
+start_native_transport: true
+native_transport_port: 9042
+
+concurrent_reads: 32
+concurrent_writes: 32
+concurrent_counter_writes: 32
+
+concurrent_materialized_view_writes: 32
