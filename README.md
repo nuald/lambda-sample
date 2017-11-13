@@ -146,7 +146,7 @@ val desc = rf.getTrees()(0).dot
 // View the diagram (macOS example)
 s"echo $desc" #| "dot -Tpng" #| "open -a Preview -f" !
 
-// Set up the implicit for the usage() function
+// Set up the implicit for the using() function
 implicit val logger = akka.event.NoLogging
 
 // Serialize the model
@@ -164,7 +164,7 @@ Load and use the model:
 // Fix the borked REPL
 jline.TerminalFactory.get.init
 
-// Set up the implicit for the usage() function
+// Set up the implicit for the using() function
 implicit val logger = akka.event.NoLogging
 
 import lib.Common.using
@@ -198,7 +198,7 @@ Check the latest analyzer snapshots:
     $ redis-cli hgetall fast-analysis
     $ redis-cli hgetall full-analysis
 
-*NOTE: For deleting the shapshot please use: `$ redis-cli del fast-analysis`.*
+*NOTE: For deleting the shapshot please use: `$ redis-cli del fast-analysis full-analysis`.*
 
 Verify the history of detecting anomalies using CQL:
 
