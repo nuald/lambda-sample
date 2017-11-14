@@ -1,37 +1,16 @@
-#!/usr/bin/env amm
+#!/usr/bin/env scala
 
-import $ivy.`com.github.scopt::scopt:3.7.0`
-import $ivy.`org.clapper::scalasti:3.0.1`, org.clapper.scalasti.ST
 import java.io._
 import scala.io.Source
 import scala.sys.process._
 import scala.util._
 
-case class Config(
-  isClient: Boolean = false,
-  host: String = "127.0.0.1"
-)
-
-val parser = new scopt.OptionParser[Config]("start.scala") {
-  opt[String]("host").optional().valueName("<IP address>").
-    action((x, c) => c.copy(host = x)).
-    text("server host")
-
-  cmd("client").action( (_, c) => c.copy(isClient = true)).
-    text("Run the client.")
-
-  cmd("server").action( (_, c) => c.copy(isClient = false)).
-    text("Run the servers.")
-}
-
-val envDir = "target/env"
-val LsofPattern = raw"""p(\d+)""".r
-
 def isCassandraRunning: Boolean = {
+  val lsofPattern = raw"""p(\d+)""".r
   val lsof = Seq("lsof", "-Fp", "-i", ":9042")
   lsof.lineStream_!.map { (line) =>
     line match {
-      case LsofPattern(_) => true
+      case lsofPattern(_) => true
       case _ => false
     }
   }.exists(x => x)
@@ -40,16 +19,13 @@ def isCassandraRunning: Boolean = {
 def setupServers(host: String): Unit = {
   // Run Cassandra
   val src = Source.fromFile("resources/cassandra/cassandra.yaml").mkString
-  val template = ST(src, '`', '`').add("host", host)
-  template.render() match {
-    case Success(dst) => {
-      val cassandraYml = new File(s"$envDir/cassandra.yaml")
-      new PrintWriter(cassandraYml) { write(dst); close }
-      val url = cassandraYml.toURI().toURL()
-      s"cassandra -f -Dcassandra.config=$url".run()
-    }
-    case Failure(ex) => println(ex)
-  }
+  val dst = src.replaceAll("`host`", host)
+  val envDir = "target/env"
+  new File(envDir).mkdir()
+  val cassandraYml = new File(s"$envDir/cassandra.yaml")
+  new PrintWriter(cassandraYml) { write(dst); close }
+  val url = cassandraYml.toURI().toURL()
+  s"cassandra -f -Dcassandra.config=$url".run()
   // Run Redis
   s"redis-server --bind $host".run()
   // Run Mosquitto
@@ -69,17 +45,32 @@ def setupClient(host: String): Unit = {
 
 }
 
-@main
-def entrypoint(args: String*) = {
-  parser.parse(args, Config()) match {
-    case Some(config) =>
-      new File(envDir).mkdir()
-      if (config.isClient) {
-        setupClient(config.host)
+def usage(): Unit = println("""scala start.sc [server|client] --host=<host>
+
+Cluster helper: runs either servers or client with the provided server host.
+""")
+
+def entrypoint(args: Array[String]): Unit = {
+  var isClientOpt: Option[Boolean] = None
+  var host = "127.0.0.1"
+  val hostPattern = raw"""--host=(\d+\.\d+\.\d+\.\d+)""".r
+
+  args foreach (_ match {
+    case "server" => isClientOpt = Some(false)
+    case "client" => isClientOpt = Some(true)
+    case hostPattern(h) => host = h
+    case _ => // pass
+  })
+
+  isClientOpt match {
+    case Some(isClient) =>
+      if (isClient) {
+        setupClient(host)
       } else {
-        setupServers(config.host)
+        setupServers(host)
       }
-    case None =>
-    // arguments are bad, error message will have been displayed
+    case None => usage()
   }
 }
+
+entrypoint(args)

@@ -42,7 +42,6 @@ Optionally you may install:
  - [Graphviz](http://www.graphviz.org/) visualization software (its dot utility is used for
  the Decision Tree visualization in the sample REPL session)
  - [Hey](https://github.com/rakyll/hey) HTTP load generator (used for the performance tests)
- - [Ammonite](http://ammonite.io/#ScalaScripts) Scala script runner (used for the clustering)
 
 ## Usage
 
@@ -214,4 +213,4 @@ Verify the history of detecting anomalies using CQL:
 
 Run the servers (please use the external IP):
 
-    $ amm start.sc server --host <host>
+    $ scala start.sc server --host <host>
