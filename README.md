@@ -2,10 +2,18 @@
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
 
-The computing layers:
+The system layers:
 
  - Speed: based on the standard deviation
  - Batch: Random Forest classification (using [Smile](https://haifengl.github.io/smile/) engine)
+ - Serving: Akka/Scala cluster with in-memory Redis database and persistance with Cassandra
+
+The data flow:
+
+ 1. MQTT messages are produced by the IoT emulator (`Producer` actor)
+ 2. MQTT subscriber saves the messages into Cassandra database (`Consumer` actor)
+ 3. The Random Forest model is constantly trained by the messages (`Trainer` actor)
+ 4. HTTP endpoint requests the computation using the trained model and heuristics (`Analyzer` actor)
 
 # Table of Contents
 
@@ -206,4 +214,4 @@ Verify the history of detecting anomalies using CQL:
 
 Run the servers (please use the external IP):
 
-    $ ./start.sc server --host <host>
+    $ amm start.sc server --host <host>
