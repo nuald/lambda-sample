@@ -108,7 +108,7 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
 
   override def receive: Receive = {
     case Analyze =>
-      val futures =
+      val futures: Seq[Future[SensorMeta]] =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
             entries <- ask(cassandraClient, Recent(sensor)).mapTo[List[Entry]]

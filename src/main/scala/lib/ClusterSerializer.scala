@@ -13,6 +13,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
 
   private val AnalyzeManifest = Analyze.getClass.getName
   private val RegistrationManifest = Registration.getClass.getName
+  private val SeqManifest = Seq.getClass.getName
 
   override def identifier = 1023
 
@@ -24,6 +25,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
     manifest match {
       case AnalyzeManifest => Analyze
       case RegistrationManifest => Registration
+      case SeqManifest => mapper.readValue[Seq[_]](bytes)
     }
   }
 
@@ -31,6 +33,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
     obj match {
       case _: Analyze.type => AnalyzeManifest
       case _: Registration.type => RegistrationManifest
+      case _: Seq.type => SeqManifest
     }
   }
 }
