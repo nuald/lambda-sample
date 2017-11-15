@@ -213,4 +213,4 @@ Verify the history of detecting anomalies using CQL:
 
 Run the servers (please use the external IP):
 
-    $ scala start.sc server --host <host>
+    $ scala start.sc server --host=<host>

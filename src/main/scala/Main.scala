@@ -11,80 +11,68 @@ import mqtt._
 import lib._
 import redis.RedisClient
 
-object Main extends App {
-  val DefaultPort = 2551
+import scala.io.Source
 
+object Main extends App {
   val conf = Config.get
 
-  case class ScoptConfig(cassandraHost: String = conf.cassandra.address,
-                         isClient: Boolean = false,
-                         redisHost: String = conf.redis.address,
-                         port: Int = DefaultPort)
+  case class ScoptConfig(
+    cassandraHost: String = conf.cassandra.address,
+    akkaConfig: String = "",
+    isServer: Boolean = true,
+    redisHost: String = conf.redis.address)
 
   val parser = new scopt.OptionParser[ScoptConfig]("""sbt "run [options]" """) {
     opt[String]('c', "cassandra").optional().valueName("<Cassandra host>").
-      action( (x, c) => c.copy(cassandraHost = x) ).
+      action((x, c) => c.copy(cassandraHost = x)).
       text(s"Cassandra host (${ conf.cassandra.address } by default)")
 
     opt[String]('r', "redis").optional().valueName("<Redis host>").
-      action( (x, c) => c.copy(redisHost = x) ).
+      action((x, c) => c.copy(redisHost = x)).
       text(s"Redis host (${ conf.redis.address } by default)")
 
-    opt[Unit]("client").action( (_, c) =>
-      c.copy(isClient = true) ).text("Cluster client mode")
+    opt[String]("config").optional().valueName("<Akka config>").
+      action((x, c) => c.copy(akkaConfig = x)).
+      text(s"Akka custom config")
 
-    opt[String]('p', "port").optional().valueName("<port>").
-      action( (x, c) => c.copy(port = x.toInt) ).
-      text(s"Local port ($DefaultPort by default)")
+    opt[Unit]("client")
+      .action((_, c) => c.copy(isServer = false)).text("Cluster client mode")
   }
 
   parser.parse(args, ScoptConfig()) match {
     case Some(scoptConfig) =>
-      val cluster = Cluster.builder().addContactPoint(scoptConfig.cassandraHost).build()
-
-      if (scoptConfig.isClient) {
-        val akkaConfig = ConfigFactory.parseString(s"akka.remote.netty.tcp.port=${ scoptConfig.port }").
-          withFallback(ConfigFactory.load())
-
-        implicit val system: ActorSystem = ActorSystem("ClusterSystem", akkaConfig)
-        implicit val materializer: ActorMaterializer = ActorMaterializer()
-
-        val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
-        val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
-        system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer")
-
-        scala.sys.addShutdownHook {
-          system.terminate()
-          Await.result(system.whenTerminated, 5.seconds)
-          cluster.close()
-        }
+      val akkaConfig = if (scoptConfig.akkaConfig.nonEmpty) {
+        val content = Source.fromFile(scoptConfig.akkaConfig).mkString
+        ConfigFactory.parseString(content).withFallback(ConfigFactory.load())
       } else {
-        val akkaConfig = ConfigFactory.parseString(s"akka.remote.netty.tcp.port=${ scoptConfig.port }").
-          withFallback(ConfigFactory.parseString("akka.cluster.roles = [frontend]")).
-          withFallback(ConfigFactory.load())
+        ConfigFactory.load()
+      }
 
-        implicit val system: ActorSystem = ActorSystem("ClusterSystem", akkaConfig)
-        implicit val materializer: ActorMaterializer = ActorMaterializer()
+      implicit val system: ActorSystem = ActorSystem("ClusterSystem", akkaConfig)
+      implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-        val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
-        val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
+      val cluster = Cluster.builder().addContactPoint(scoptConfig.cassandraHost).build()
+      val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
+
+      val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
+      val analyzer = system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer")
+
+      if (scoptConfig.isServer) {
         system.actorOf(Producer.props(), "producer")
         system.actorOf(Consumer.props(cluster), "consumer")
 
-        system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer")
-        system.actorOf(Endpoint.props(), "endpoint")
+        system.actorOf(Endpoint.props(analyzer), "endpoint")
         system.actorOf(Trainer.props(cassandraClient, redisClient), "trainer")
-        system.actorOf(HistoryWriter.props(cluster, redisClient), "history-writer")
 
+        system.actorOf(HistoryWriter.props(cluster, redisClient, analyzer), "history-writer")
         system.actorOf(Dashboard.props(cassandraClient), "dashboard")
-
-        scala.sys.addShutdownHook {
-          system.terminate()
-          Await.result(system.whenTerminated, 5.seconds)
-          cluster.close()
-        }
       }
 
+      scala.sys.addShutdownHook {
+        system.terminate()
+        Await.result(system.whenTerminated, 5.seconds)
+        cluster.close()
+      }
     case None =>
       // arguments are bad, error message will have been displayed
   }

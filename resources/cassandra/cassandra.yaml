@@ -1,5 +1,5 @@
-rpc_address: `host`
-listen_address: `host`
+rpc_address: <host>
+listen_address: <host>
 
 commitlog_sync: periodic
 commitlog_sync_period_in_ms: 10000
@@ -11,7 +11,7 @@ endpoint_snitch: SimpleSnitch
 seed_provider:
     - class_name: org.apache.cassandra.locator.SimpleSeedProvider
       parameters:
-          - seeds: "`host`"
+          - seeds: "<host>"
 
 num_tokens: 256
 start_native_transport: true
