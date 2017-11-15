@@ -24,10 +24,13 @@ def runCmdAsync(cmd: String, dryRun: Boolean): Unit = {
 }
 
 def runSbt(cmd: String, dryRun: Boolean): Unit = {
+  val isWindows = sys.props("os.name").startsWith("Windows")
+  val shellPrefix: Array[String] = if (isWindows) Array("cmd", "/C") else Array()
+  val runSeq = shellPrefix ++ Array("sbt", cmd)
   if (dryRun) {
-    println(s"sbt '${ cmd }'")
+    println(runSeq.mkString(" "))
   } else {
-    Process("sbt", Seq(cmd)).!
+    Process(runSeq).!
   }
 }
 
@@ -74,7 +77,7 @@ def setupServers(host: String, dryRun: Boolean): Unit = {
 def setupClient(host: String, port: Int, dryRun: Boolean): Unit = {
   // Run the client
   val conf = createAkkaConfig(host, port, isClient = true)
-  runSbt(s"run client -c $host -r $host --config $conf", dryRun)
+  runSbt(s"run --client -c $host -r $host --config $conf", dryRun)
 }
 
 def usage(): Unit = println("""
