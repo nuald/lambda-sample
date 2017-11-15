@@ -1,7 +1,7 @@
 package lib
 
 import akka.serialization.SerializerWithStringManifest
-import analyzer.{Analyze, Registration}
+import analyzer.{AllMeta, Analyze, Registration}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -13,7 +13,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
 
   private val AnalyzeManifest = Analyze.getClass.getName
   private val RegistrationManifest = Registration.getClass.getName
-  private val SeqManifest = Seq.getClass.getName
+  private val AllMetaManifest = AllMeta.getClass.getName
 
   override def identifier = 1023
 
@@ -25,7 +25,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
     manifest match {
       case AnalyzeManifest => Analyze
       case RegistrationManifest => Registration
-      case SeqManifest => mapper.readValue[Seq[_]](bytes)
+      case AllMetaManifest => mapper.readValue[AllMeta](bytes)
     }
   }
 
@@ -33,7 +33,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
     obj match {
       case _: Analyze.type => AnalyzeManifest
       case _: Registration.type => RegistrationManifest
-      case _: Seq.type => SeqManifest
+      case _: AllMeta.type => AllMetaManifest
     }
   }
 }

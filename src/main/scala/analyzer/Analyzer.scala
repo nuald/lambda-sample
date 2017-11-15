@@ -27,6 +27,8 @@ final case class SensorMeta(
   avgAnomaly: Double
 ) extends Serializable
 
+final case class AllMeta(entries: Seq[SensorMeta])
+
 object Analyzer {
   def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =
     Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
@@ -121,7 +123,7 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
             meta
           }
 
-      Future.sequence(futures) pipeTo sender()
+      Future.sequence(futures) map {x => AllMeta(x)} pipeTo sender()
 
     case state: CurrentClusterState =>
       state.members.filter(_.status == MemberStatus.Up) foreach register

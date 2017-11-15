@@ -44,7 +44,7 @@ class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMateri
         if (analyzers.nonEmpty) {
           jobCounter += 1
           val analyzer = analyzers(jobCounter % analyzers.size)
-          onSuccess(ask(analyzer, Analyze).mapTo[Seq[SensorMeta]]) { entries  =>
+          onSuccess(ask(analyzer, Analyze).mapTo[AllMeta]) { entries  =>
             val json = mapper.writeValueAsString(entries)
             complete(HttpEntity(ContentTypes.`application/json`, json))
           }
