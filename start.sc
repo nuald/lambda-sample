@@ -16,10 +16,9 @@ def isCassandraRunning: Boolean = {
 }
 
 def runCmdAsync(cmd: String, dryRun: Boolean): Unit = {
-  if (dryRun) {
-    println(cmd)
-  } else {
-    cmd.run()
+  println("$ " + cmd)
+  if (!dryRun) {
+    Runtime.getRuntime.exec(cmd)
   }
 }
 
@@ -27,9 +26,8 @@ def runSbt(cmd: String, dryRun: Boolean): Unit = {
   val isWindows = sys.props("os.name").startsWith("Windows")
   val shellPrefix: Array[String] = if (isWindows) Array("cmd", "/C") else Array()
   val runSeq = shellPrefix ++ Array("sbt", cmd)
-  if (dryRun) {
-    println(runSeq.mkString(" "))
-  } else {
+  println("\n$ " + runSeq.mkString(" "))
+  if (!dryRun) {
     Process(runSeq).!
   }
 }
