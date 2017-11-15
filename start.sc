@@ -34,28 +34,32 @@ def runSbt(cmd: String, dryRun: Boolean): Unit = {
   }
 }
 
-def createAkkaConfig(host: String, port: Int, isClient: Boolean): File = {
+def createAkkaConfig(serverHost: String,
+                     clientHost: String,
+                     clientPort: Int,
+                     isClient: Boolean): File = {
   val src = Source.fromFile("resources/akka/cluster.conf").mkString
   val role = if (isClient) "" else "frontend"
-  val dst = src.replaceAll("<host>", host)
-    .replaceAll("<port>", port.toString)
+  val dst = src.replaceAll("<server-host>", serverHost)
+    .replaceAll("<client-host>", clientHost)
+    .replaceAll("<client-port>", clientPort.toString)
     .replaceAll("<role>", role)
   val akkaConf = new File(s"$EnvDir/cluster.conf")
   new PrintWriter(akkaConf) { write(dst); close() }
   akkaConf
 }
 
-def setupServers(host: String, dryRun: Boolean): Unit = {
+def setupServers(serverHost: String, dryRun: Boolean): Unit = {
   // Run Cassandra
   val src = Source.fromFile("resources/cassandra/cassandra.yaml").mkString
-  val dst = src.replaceAll("<host>", host)
+  val dst = src.replaceAll("<host>", serverHost)
   val cassandraYml = new File(s"$EnvDir/cassandra.yaml")
   new PrintWriter(cassandraYml) { write(dst); close() }
   val url = cassandraYml.toURI.toURL
   runCmdAsync(s"cassandra -f -Dcassandra.config=$url", dryRun)
 
   // Run Redis
-  runCmdAsync(s"redis-server --bind $host", dryRun)
+  runCmdAsync(s"redis-server --bind $serverHost", dryRun)
 
   // Run Mosquitto
   runCmdAsync("mosquitto", dryRun)
@@ -70,39 +74,50 @@ def setupServers(host: String, dryRun: Boolean): Unit = {
   }
 
   // Run the cluster
-  val conf = createAkkaConfig(host, 2551, isClient = false)
-  runSbt(s"run -c $host -r $host --config $conf", dryRun)
+  val conf = createAkkaConfig(serverHost, serverHost, 2551, isClient = false)
+  runSbt(s"run -c $serverHost -r $serverHost --config $conf", dryRun)
 }
 
-def setupClient(host: String, port: Int, dryRun: Boolean): Unit = {
+def setupClient(serverHost: String,
+                clientHost: String,
+                clientPort: Int,
+                dryRun: Boolean): Unit = {
   // Run the client
-  val conf = createAkkaConfig(host, port, isClient = true)
-  runSbt(s"run --client -c $host -r $host --config $conf", dryRun)
+  val conf = createAkkaConfig(serverHost, clientHost, clientPort, isClient = true)
+  runSbt(s"run --client -c $serverHost -r $serverHost --config $conf", dryRun)
 }
 
 def usage(): Unit = println("""
-scala start.sc [server|client] [--host=<host>] [--port=<port>] [--dry-run]
+scala start.sc [server|client] [options]
 
 Cluster helper: runs either servers or client with the provided server host.
-The port is applicable only for the client mode (specifies the seed port).
-You may use "--dry-run" option to verify the generation of config files.
+
+Options:
+
+  --server-host=<host> Server IP address (used for both modes)
+  --client-host=<port> Client IP address (used for client mode only)
+  --client-port=<port> Client TCP port (used for client mode only)
+  --dry-run            Only update the config files
 """)
 
 def entrypoint(args: Array[String]): Unit = {
-  val hostPattern = raw"""--host=(\d+\.\d+\.\d+\.\d+)""".r
-  val portPattern = raw"""--port=(\d+)""".r
+  val serverHostPattern = raw"""--server-host=(\d+\.\d+\.\d+\.\d+)""".r
+  val clientHostPattern = raw"""--client-host=(\d+\.\d+\.\d+\.\d+)""".r
+  val clientPortPattern = raw"""--client-port=(\d+)""".r
 
   var isClientOpt: Option[Boolean] = None
-  var host = "127.0.0.1"
-  var port = 2552
+  var serverHost = "127.0.0.1"
+  var clientHost = "127.0.0.1"
+  var clientPort = 2552
   var dryRun = false
 
   args foreach {
     case "server" => isClientOpt = Some(false)
     case "client" => isClientOpt = Some(true)
     case "--dry-run" => dryRun = true
-    case hostPattern(h) => host = h
-    case portPattern(p) => port = p.toInt
+    case serverHostPattern(h) => serverHost = h
+    case clientHostPattern(h) => clientHost = h
+    case clientPortPattern(p) => clientPort = p.toInt
     case _ => // pass
   }
 
@@ -110,9 +125,9 @@ def entrypoint(args: Array[String]): Unit = {
     case Some(isClient) =>
       new File(EnvDir).mkdir()
       if (isClient) {
-        setupClient(host, port, dryRun)
+        setupClient(serverHost, clientHost, clientPort, dryRun)
       } else {
-        setupServers(host, dryRun)
+        setupServers(serverHost, dryRun)
       }
     case None => usage()
   }
