@@ -4,7 +4,6 @@ import akka.actor._
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import analyzer.Analyzer.Registration
-import analyzer.Endpoint.Analyze
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._

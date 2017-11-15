@@ -11,6 +11,7 @@ libraryDependencies ++= Seq(
   "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.0",
   "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.1",
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.1",
+  "com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.1",
   "com.github.etaty" %% "rediscala" % "1.8.0",
   "com.github.haifengl" %% "smile-scala" % "1.4.0",
   "com.github.scopt" %% "scopt" % "3.7.0",

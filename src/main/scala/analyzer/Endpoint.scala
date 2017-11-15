@@ -16,11 +16,12 @@ import lib._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
+case object Analyze
+
 object Endpoint {
   def props(analyzer: ActorRef)(implicit materializer: ActorMaterializer) =
     Props(classOf[Endpoint], analyzer, materializer)
 
-  final case object Analyze
 }
 
 class Endpoint(analyzer: ActorRef)(implicit materializer: ActorMaterializer)

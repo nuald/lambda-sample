@@ -7,7 +7,6 @@ import akka.event.LoggingAdapter
 import akka.pattern.{ask, pipe}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import analyzer.Endpoint.Analyze
 import lib.CassandraClient.{Entry, Recent}
 import lib.{Config, Sealed}
 import redis.RedisClient
