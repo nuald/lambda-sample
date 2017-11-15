@@ -33,7 +33,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
     obj match {
       case _: Analyze.type => AnalyzeManifest
       case _: Registration.type => RegistrationManifest
-      case _: AllMeta.type => AllMetaManifest
+      case _: AllMeta => AllMetaManifest
     }
   }
 }

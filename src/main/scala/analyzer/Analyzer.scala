@@ -27,7 +27,7 @@ final case class SensorMeta(
   avgAnomaly: Double
 ) extends Serializable
 
-final case class AllMeta(entries: Seq[SensorMeta])
+final case class AllMeta(entries: List[SensorMeta]) extends Serializable
 
 object Analyzer {
   def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =
@@ -117,13 +117,14 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
             rf <- fetchModel(sensor)
           } yield {
             val meta = analyze(sensor, entries, rf)
-            metaWriter(meta) foreach { bytes =>
-              redisClient.hset(conf.fastAnalyzer.key, sensor, bytes)
-            }
+            // TODO: move to the history writer
+//            metaWriter(meta) foreach { bytes =>
+//              redisClient.hset(conf.fastAnalyzer.key, sensor, bytes)
+//            }
             meta
           }
 
-      Future.sequence(futures) map {x => AllMeta(x)} pipeTo sender()
+      Future.sequence(futures) map {x => AllMeta(x.toList)} pipeTo sender()
 
     case state: CurrentClusterState =>
       state.members.filter(_.status == MemberStatus.Up) foreach register
