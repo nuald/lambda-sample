@@ -1,7 +1,7 @@
 package lib
 
 import akka.serialization.SerializerWithStringManifest
-import analyzer.Analyze
+import analyzer.{Analyze, Registration}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -12,6 +12,7 @@ class ClusterSerializer extends SerializerWithStringManifest {
   mapper.registerModule(DefaultScalaModule)
 
   val AnalyzeManifest = "analyze"
+  val RegistrationManifest = "analyze"
 
   override def identifier = 1023
 
@@ -22,12 +23,14 @@ class ClusterSerializer extends SerializerWithStringManifest {
   override def fromBinary(bytes: Array[Byte], manifest: String): AnyRef = {
     manifest match {
       case AnalyzeManifest => Analyze
+      case RegistrationManifest => Registration
     }
   }
 
   override def manifest(obj: AnyRef): String = {
     obj match {
       case _: Analyze.type => AnalyzeManifest
+      case _: Registration.type => RegistrationManifest
     }
   }
 }

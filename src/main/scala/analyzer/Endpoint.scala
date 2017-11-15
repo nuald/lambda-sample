@@ -7,7 +7,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import analyzer.Analyzer.Registration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
@@ -16,17 +15,13 @@ import lib._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
-case object Analyze
-
 object Endpoint {
   def props(analyzer: ActorRef)(implicit materializer: ActorMaterializer) =
     Props(classOf[Endpoint], analyzer, materializer)
-
 }
 
 class Endpoint(analyzer: ActorRef)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
-  import Endpoint._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher

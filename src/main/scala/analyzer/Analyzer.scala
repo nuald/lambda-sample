@@ -16,6 +16,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.collection.JavaConverters._
 
+case object Analyze
+case object Registration
+
 final case class SensorMeta(
   name: String,
   ts: java.util.Date,
@@ -54,13 +57,10 @@ object Analyzer {
       probability.min
     }
   }
-
-  final case object Registration
 }
 
 class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
-  import Analyzer._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher

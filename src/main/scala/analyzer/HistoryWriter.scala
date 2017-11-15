@@ -3,7 +3,6 @@ package analyzer
 import akka.actor._
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
-import analyzer.Analyzer.Registration
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
