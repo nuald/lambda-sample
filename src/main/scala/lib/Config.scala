@@ -56,6 +56,7 @@ class FullAnalyzerConfig {
 }
 
 class HistoryWriterConfig {
+  @BeanProperty var timeout = 1000
   @BeanProperty var period = 1000
   @BeanProperty var table = ""
 }

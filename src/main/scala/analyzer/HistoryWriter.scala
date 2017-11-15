@@ -1,8 +1,10 @@
 package analyzer
 
 import akka.actor._
+import akka.pattern.ask
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
+import akka.util.Timeout
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
@@ -31,7 +33,10 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
+  implicit val timeout: Timeout = Timeout(conf.historyWriter.timeout.millis)
+
   private val sealReader = new Sealed[SensorMeta](conf.redis.salt).reader
+  private val metaWriter = new Sealed[SensorMeta](conf.redis.salt).writer
   private val session = cluster.connect(conf.cassandra.keyspace)
 
   private val lastTimestamp = collection.mutable.Map(
@@ -76,7 +81,13 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
     if (analyzers.nonEmpty) {
       jobCounter += 1
       val analyzer = analyzers(jobCounter % analyzers.size)
-      analyzer ! Analyze
+      ask(analyzer, Analyze).mapTo[AllMeta] foreach { x =>
+        for (meta <- x.entries) {
+          metaWriter(meta) foreach { bytes =>
+            redisClient.hset(conf.fastAnalyzer.key, meta.name, bytes)
+          }
+        }
+      }
     }
   }
 

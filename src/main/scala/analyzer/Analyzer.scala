@@ -71,7 +71,6 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
   val cluster = Cluster(context.system)
 
   private val conf = Config.get
-  private val metaWriter = new Sealed[SensorMeta](conf.redis.salt).writer
   private val rfReader = new Sealed[RandomForest](conf.redis.salt).reader
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
@@ -115,14 +114,7 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
           yield for {
             entries <- ask(cassandraClient, Recent(sensor)).mapTo[List[Entry]]
             rf <- fetchModel(sensor)
-          } yield {
-            val meta = analyze(sensor, entries, rf)
-            // TODO: move to the history writer
-//            metaWriter(meta) foreach { bytes =>
-//              redisClient.hset(conf.fastAnalyzer.key, sensor, bytes)
-//            }
-            meta
-          }
+          } yield analyze(sensor, entries, rf)
 
       Future.sequence(futures) map {x => AllMeta(x.toList)} pipeTo sender()
 
