@@ -14,14 +14,14 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
 object HistoryWriter {
-  def props(cluster: Cluster, redisClient: RedisClient, analyzer: ActorRef)
+  def props(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[HistoryWriter], cluster, redisClient, analyzer, materializer)
+    Props(classOf[HistoryWriter], cluster, redisClient, analyzerOpt, materializer)
 
   private final case object Tick
 }
 
-class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzer: ActorRef)
+class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
                    (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import HistoryWriter._
@@ -38,7 +38,10 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzer: ActorR
     conf.mqtt.sensors.asScala.map(a => (a, new java.util.Date())): _*
   )
 
-  private var analyzers = IndexedSeq(analyzer)
+  private var analyzers = analyzerOpt match {
+    case Some(ref) => IndexedSeq(ref)
+    case None => IndexedSeq()
+  }
   var jobCounter = 0
 
   override def postStop(): Unit = {

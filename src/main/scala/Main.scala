@@ -20,6 +20,7 @@ object Main extends App {
     cassandraHost: String = conf.cassandra.address,
     akkaConfig: String = "",
     isServer: Boolean = true,
+    noLocalAnalyzer: Boolean = false,
     redisHost: String = conf.redis.address)
 
   val parser = new scopt.OptionParser[ScoptConfig]("""sbt "run [options]" """) {
@@ -37,6 +38,9 @@ object Main extends App {
 
     opt[Unit]("client")
       .action((_, c) => c.copy(isServer = false)).text("Cluster client mode")
+
+    opt[Unit]("no-local-analyzer")
+      .action((_, c) => c.copy(noLocalAnalyzer = true)).text("Don't use the local analyzer")
   }
 
   parser.parse(args, ScoptConfig()) match {
@@ -55,16 +59,17 @@ object Main extends App {
       val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
 
       val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
-      val analyzer = system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer")
+      val analyzerOpt = if (scoptConfig.noLocalAnalyzer) None else
+        Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer"))
 
       if (scoptConfig.isServer) {
         system.actorOf(Producer.props(), "producer")
         system.actorOf(Consumer.props(cluster), "consumer")
 
-        system.actorOf(Endpoint.props(analyzer), "endpoint")
+        system.actorOf(Endpoint.props(analyzerOpt), "endpoint")
         system.actorOf(Trainer.props(cassandraClient, redisClient), "trainer")
 
-        system.actorOf(HistoryWriter.props(cluster, redisClient, analyzer), "history-writer")
+        system.actorOf(HistoryWriter.props(cluster, redisClient, analyzerOpt), "history-writer")
         system.actorOf(Dashboard.props(cassandraClient), "dashboard")
       }
 

@@ -215,6 +215,12 @@ Run the servers (please use the external IP):
 
     $ scala start.sc server --server-host=<host>
 
+By default, the server runs its own analyzer, however, it may affect
+the metrics due to local analyzer works much faster than the remote ones.
+To normalize the metrics you may use the `--no-local-analyzer` option: 
+
+    $ scala start.sc server --server-host=<host> --no-local-analyzer
+
 Run the client (please use the external IP):
 
     $ scala start.sc client --server-host=<server-host> --client-host=<client-host> --client-port=<port>

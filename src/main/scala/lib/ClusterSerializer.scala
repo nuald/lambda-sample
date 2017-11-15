@@ -11,8 +11,8 @@ class ClusterSerializer extends SerializerWithStringManifest {
   val mapper = new ObjectMapper(new SmileFactory()) with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
-  val AnalyzeManifest = "analyze"
-  val RegistrationManifest = "analyze"
+  private val AnalyzeManifest = Analyze.getClass.getName
+  private val RegistrationManifest = Registration.getClass.getName
 
   override def identifier = 1023
 

@@ -47,7 +47,9 @@ def createAkkaConfig(serverHost: String,
   akkaConf
 }
 
-def setupServers(serverHost: String, dryRun: Boolean): Unit = {
+def setupServers(serverHost: String,
+                 noLocalAnalyzer: Boolean,
+                 dryRun: Boolean): Unit = {
   // Run Cassandra
   val src = Source.fromFile("resources/cassandra/cassandra.yaml").mkString
   val dst = src.replaceAll("<host>", serverHost)
@@ -73,7 +75,13 @@ def setupServers(serverHost: String, dryRun: Boolean): Unit = {
 
   // Run the cluster
   val conf = createAkkaConfig(serverHost, serverHost, 2551, isClient = false)
-  runSbt(s"run -c $serverHost -r $serverHost --config $conf", dryRun)
+  val opts = Seq("run",
+    "-c", serverHost,
+    "-r", serverHost,
+    "--config", conf,
+    if (noLocalAnalyzer) "--no-local-analyzer" else ""
+  )
+  runSbt(opts.mkString(" "), dryRun)
 }
 
 def setupClient(serverHost: String,
@@ -95,6 +103,7 @@ Options:
   --server-host=<host> Server IP address (used for both modes)
   --client-host=<port> Client IP address (used for client mode only)
   --client-port=<port> Client TCP port (used for client mode only)
+  --no-local-analyzer  Don't use the local analyzer (used for server mode only)
   --dry-run            Only update the config files
 """)
 
@@ -108,11 +117,13 @@ def entrypoint(args: Array[String]): Unit = {
   var clientHost = "127.0.0.1"
   var clientPort = 2552
   var dryRun = false
+  var noLocalAnalyzer = false
 
   args foreach {
     case "server" => isClientOpt = Some(false)
     case "client" => isClientOpt = Some(true)
     case "--dry-run" => dryRun = true
+    case "--no-local-analyzer" => noLocalAnalyzer = true
     case serverHostPattern(h) => serverHost = h
     case clientHostPattern(h) => clientHost = h
     case clientPortPattern(p) => clientPort = p.toInt
@@ -125,7 +136,7 @@ def entrypoint(args: Array[String]): Unit = {
       if (isClient) {
         setupClient(serverHost, clientHost, clientPort, dryRun)
       } else {
-        setupServers(serverHost, dryRun)
+        setupServers(serverHost, noLocalAnalyzer, dryRun)
       }
     case None => usage()
   }

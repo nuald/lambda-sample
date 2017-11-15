@@ -16,11 +16,11 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 object Endpoint {
-  def props(analyzer: ActorRef)(implicit materializer: ActorMaterializer) =
-    Props(classOf[Endpoint], analyzer, materializer)
+  def props(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMaterializer) =
+    Props(classOf[Endpoint], analyzerOpt, materializer)
 }
 
-class Endpoint(analyzer: ActorRef)(implicit materializer: ActorMaterializer)
+class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
   implicit val system: ActorSystem = context.system
@@ -32,7 +32,10 @@ class Endpoint(analyzer: ActorRef)(implicit materializer: ActorMaterializer)
   val mapper = new ObjectMapper with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
-  private var analyzers = IndexedSeq(analyzer)
+  private var analyzers = analyzerOpt match {
+    case Some(ref) => IndexedSeq(ref)
+    case None => IndexedSeq()
+  }
   var jobCounter = 0
 
   private val route =
