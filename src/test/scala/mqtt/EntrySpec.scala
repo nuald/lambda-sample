@@ -1,7 +1,8 @@
 package mqtt
 
 import akka.event.LoggingAdapter
-import lib.Sealed
+import lib.ClusterSerializer
+import mqtt.Producer.MqttEntry
 import org.scalatest._
 
 class EntrySpec extends FlatSpec with Matchers {
@@ -11,9 +12,9 @@ class EntrySpec extends FlatSpec with Matchers {
     val sensor = "sensor 1"
     val value = 123
     val anomaly = 0
-    val sealWriter = new Sealed[Entry]("salt").writer
-    val bytes1 = sealWriter(mqtt.Entry(sensor, value, anomaly)).get
-    val bytes2 = sealWriter(mqtt.Entry(sensor, value, anomaly)).get
+    val serializer = new ClusterSerializer()
+    val bytes1 = serializer.toBinary(MqttEntry(sensor, value, anomaly))
+    val bytes2 = serializer.toBinary(MqttEntry(sensor, value, anomaly))
     bytes1 should contain theSameElementsInOrderAs bytes2
   }
 
@@ -21,13 +22,11 @@ class EntrySpec extends FlatSpec with Matchers {
     val sensor = "sensor 1"
     val value = 123
     val anomaly = 0
-    val seal = new Sealed[Entry]("salt")
-    val sealWriter = seal.writer
-    val sealReader = seal.reader
+    val serializer = new ClusterSerializer()
 
-    val originalEntry = mqtt.Entry(sensor, value, anomaly)
-    val bytes = sealWriter(originalEntry).get
-    val entry = sealReader(bytes).get
+    val originalEntry = MqttEntry(sensor, value, anomaly)
+    val bytes = serializer.toBinary(originalEntry)
+    val entry = serializer.fromBinary(bytes, ClusterSerializer.MqttEntryManifest)
     entry should be (originalEntry)
   }
 }

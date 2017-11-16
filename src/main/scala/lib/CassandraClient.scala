@@ -10,7 +10,8 @@ import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 
 object CassandraClient {
-  def props(cluster: Cluster)(implicit materializer: ActorMaterializer) =
+  def props(cluster: Cluster)
+           (implicit materializer: ActorMaterializer) =
     Props(classOf[CassandraClient], cluster, materializer)
 
   final case class Entry(sensor: String, ts: java.util.Date, value: Double, anomaly: Int)
@@ -21,7 +22,8 @@ object CassandraClient {
   final case object HistoryAll
 }
 
-class CassandraClient(cluster: Cluster)(implicit materializer: ActorMaterializer)
+class CassandraClient(cluster: Cluster)
+                     (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
   import CassandraClient._

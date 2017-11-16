@@ -65,7 +65,7 @@ class Dashboard(cassandraClient: ActorRef, endpoint: ActorRef)
     }
 
   var httpBinding: Option[ServerBinding] = None
-  val client = new HttpClient(
+  val httpClient = new HttpClient(
     route,
     conf.dashboard.address,
     conf.dashboard.port,

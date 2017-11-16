@@ -1,7 +1,7 @@
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import analyzer.{Analyzer, Endpoint, HistoryWriter, Trainer}
-import com.datastax.driver.core.Cluster
+import com.datastax.driver.core.{Cluster, HostDistance, PoolingOptions}
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.Await
@@ -55,7 +55,14 @@ object Main extends App {
       implicit val system: ActorSystem = ActorSystem("cluster", akkaConfig)
       implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-      val cluster = Cluster.builder().addContactPoint(scoptConfig.cassandraHost).build()
+      val poolingOptions = new PoolingOptions()
+      poolingOptions
+        .setConnectionsPerHost(HostDistance.LOCAL,  4, 10)
+        .setConnectionsPerHost(HostDistance.REMOTE, 2, 4)
+      val cluster = Cluster.builder()
+        .addContactPoint(scoptConfig.cassandraHost)
+        .withPoolingOptions(poolingOptions)
+        .build()
       val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
 
       val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)

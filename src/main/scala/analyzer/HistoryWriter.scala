@@ -35,8 +35,6 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
   private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.historyWriter.timeout.millis)
 
-  private val sealReader = new Sealed[SensorMeta](conf.redis.salt).reader
-  private val metaWriter = new Sealed[SensorMeta](conf.redis.salt).writer
   private val session = cluster.connect(conf.cassandra.keyspace)
 
   private val lastTimestamp = collection.mutable.Map(
@@ -81,36 +79,42 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
     if (analyzers.nonEmpty) {
       jobCounter += 1
       val analyzer = analyzers(jobCounter % analyzers.size)
+      val serializer = new ClusterSerializer()
       ask(analyzer, Analyze).mapTo[AllMeta] foreach { x =>
         for (meta <- x.entries) {
-          metaWriter(meta) foreach { bytes =>
-            redisClient.hset(conf.fastAnalyzer.key, meta.name, bytes)
-          }
+          val bytes = serializer.toBinary(meta)
+          redisClient.hset(conf.fastAnalyzer.key, meta.name, bytes)
         }
       }
     }
   }
 
-  def needUpdate(sensor: String): Future[Boolean] =
+  def needUpdate(sensor: String): Future[Boolean] = {
+    val serializer = new ClusterSerializer()
     for {
       bytesOpt <- redisClient.hget(conf.fastAnalyzer.key, sensor)
     } yield {
       val force = bytesOpt map { bytes =>
-        sealReader(bytes.toArray).toOption map { meta =>
-          val notUpdatedYet = lastTimestamp(sensor) == meta.ts
-          val statement = QueryBuilder.update(conf.historyWriter.table)
-            .`with`(QueryBuilder.set("fast_anomaly", meta.fastAnomaly))
-            .and(QueryBuilder.set("full_anomaly", meta.fullAnomaly))
-            .and(QueryBuilder.set("avg_anomaly", meta.avgAnomaly))
-            .where(QueryBuilder.eq("sensor", meta.name))
-            .and(QueryBuilder.eq("ts", meta.ts))
-          session.execute(statement)
-          lastTimestamp(sensor) = meta.ts
-          notUpdatedYet
-        }
+        val meta = serializer.fromBinary(
+          bytes.toArray,
+          manifest = ClusterSerializer.SensorMetaManifest
+        ).asInstanceOf[SensorMeta]
+
+        val notUpdatedYet = lastTimestamp(sensor) == meta.ts
+        val statement = QueryBuilder.update(conf.historyWriter.table)
+          .`with`(QueryBuilder.set("fast_anomaly", meta.fastAnomaly))
+          .and(QueryBuilder.set("full_anomaly", meta.fullAnomaly))
+          .and(QueryBuilder.set("avg_anomaly", meta.avgAnomaly))
+          .where(QueryBuilder.eq("sensor", meta.name))
+          .and(QueryBuilder.eq("ts", meta.ts))
+        session.execute(statement)
+
+        lastTimestamp(sensor) = meta.ts
+        notUpdatedYet
       }
-      force.flatten.getOrElse(true)
+      force.getOrElse(true)
     }
+  }
 
   system.scheduler.schedule(0.millis, conf.historyWriter.period.millis) {
     self ! Tick

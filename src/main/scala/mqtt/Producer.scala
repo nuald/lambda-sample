@@ -21,7 +21,8 @@ object Producer {
   def props()(implicit materializer: ActorMaterializer) =
     Props(classOf[Producer], materializer)
 
-  case class SensorModel(name: String, isNormal: Boolean)
+  final case class MqttEntry(sensor: String, value: Double, anomaly: Int)
+  final case class SensorModel(name: String, isNormal: Boolean)
 
   private final case object Tick
 }
@@ -35,7 +36,6 @@ class Producer()(implicit materializer: ActorMaterializer)
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  private val sealWriter = new Sealed[Entry](conf.mqtt.salt).writer
   val client = new MqttClient(conf.mqtt.broker,
     MqttClient.generateClientId,
     new MemoryPersistence
@@ -89,6 +89,7 @@ class Producer()(implicit materializer: ActorMaterializer)
     case Tick =>
       val r = scala.util.Random
       val bound = conf.mqtt.bound
+      val serializer = new ClusterSerializer()
 
       for (sensor <- sensors) {
         val sensorState = state(sensor)
@@ -97,14 +98,13 @@ class Producer()(implicit materializer: ActorMaterializer)
           case "normal" => r.nextInt(bound)
           case "anomaly" => bound + r.nextInt(bound / 2)
         })
-        val entry = Entry(
+        val entry = MqttEntry(
           sensor,
           value,
           if (sensorState == "anomaly") 1 else 0
         )
-        sealWriter(entry) foreach { bytes =>
-          msgTopic.publish(new MqttMessage(bytes))
-        }
+        val bytes = serializer.toBinary(entry)
+        msgTopic.publish(new MqttMessage(bytes))
       }
     case Connected(binding) =>
       httpBinding = Some(binding)

@@ -17,13 +17,15 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 object Endpoint {
-  def props(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMaterializer) =
+  def props(analyzerOpt: Option[ActorRef])
+           (implicit materializer: ActorMaterializer) =
     Props(classOf[Endpoint], analyzerOpt, materializer)
 
   final case object Stats
 }
 
-class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMaterializer)
+class Endpoint(analyzerOpt: Option[ActorRef])
+              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Endpoint._
 
@@ -73,7 +75,7 @@ class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMateri
     }
 
   var httpBinding: Option[ServerBinding] = None
-  val client = new HttpClient(
+  val httpClient = new HttpClient(
     route,
     conf.endpoint.address,
     conf.endpoint.port,

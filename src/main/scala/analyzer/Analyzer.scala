@@ -8,7 +8,7 @@ import akka.pattern.{ask, pipe}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import lib.CassandraClient.{Entry, Recent}
-import lib.{Config, Sealed}
+import lib.{ClusterSerializer, Config}
 import redis.RedisClient
 import smile.classification.RandomForest
 
@@ -25,12 +25,13 @@ final case class SensorMeta(
   fastAnomaly: Double,
   fullAnomaly: Double,
   avgAnomaly: Double
-) extends Serializable
+)
 
 final case class AllMeta(entries: List[SensorMeta])
 
 object Analyzer {
-  def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =
+  def props(cassandraClient: ActorRef, redisClient: RedisClient)
+           (implicit materializer: ActorMaterializer) =
     Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
 
   def getAnomalyFast(value: Double, values: List[Double]): Double = {
@@ -61,7 +62,8 @@ object Analyzer {
   }
 }
 
-class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer)
+class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)
+              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
   implicit val system: ActorSystem = context.system
@@ -71,7 +73,6 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
   val cluster = Cluster(context.system)
 
   private val conf = Config.get
-  private val rfReader = new Sealed[RandomForest](conf.redis.salt).reader
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
   override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
@@ -97,15 +98,17 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mat
     )
   }
 
-  def fetchModel(sensor: String): Future[Option[RandomForest]] =
+  def fetchModel(sensor: String): Future[Option[RandomForest]] = {
+    val serializer = new ClusterSerializer()
     for {
       bytesOpt <- redisClient.hget(conf.fullAnalyzer.key, sensor)
-    } yield {
-      val rfOpt = bytesOpt map { bytes =>
-        rfReader(bytes.toArray).toOption
-      }
-      rfOpt.flatten
+    } yield bytesOpt map { bytes =>
+      serializer.fromBinary(
+        bytes.toArray,
+        manifest = ClusterSerializer.RandomForestManifest
+      ).asInstanceOf[RandomForest]
     }
+  }
 
   override def receive: Receive = {
     case Analyze =>

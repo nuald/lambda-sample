@@ -8,17 +8,20 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
+import mqtt.Producer.MqttEntry
 
 import scala.concurrent.ExecutionContext
 
 object Consumer {
-  def props(cluster: Cluster)(implicit materializer: ActorMaterializer) =
+  def props(cluster: Cluster)
+           (implicit materializer: ActorMaterializer) =
     Props(classOf[Consumer], cluster, materializer)
 
   final case class Arrived(message: MqttMessage)
 }
 
-class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
+class Consumer(cluster: Cluster)
+              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Consumer._
 
@@ -29,7 +32,6 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
   private val conf = Config.get
   private val session = cluster.connect(conf.cassandra.keyspace)
 
-  private val sealReader = new Sealed[Entry](conf.mqtt.salt).reader
   val client = new MqttClient(
     conf.mqtt.broker,
     MqttClient.generateClientId,
@@ -58,13 +60,17 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
 
   override def receive: Receive = {
     case Arrived(message) =>
-      sealReader(message.getPayload) foreach { entry =>
-        val statement = QueryBuilder.update(conf.cassandra.table)
-          .`with`(QueryBuilder.set("value", entry.value))
-          .and(QueryBuilder.set("anomaly", entry.anomaly))
-          .where(QueryBuilder.eq("sensor", entry.sensor))
-          .and(QueryBuilder.eq("ts", System.currentTimeMillis))
-        session.execute(statement)
-      }
+      val serializer = new ClusterSerializer()
+      val entry = serializer.fromBinary(
+        message.getPayload,
+        manifest = ClusterSerializer.RandomForestManifest
+      ).asInstanceOf[MqttEntry]
+
+      val statement = QueryBuilder.update(conf.cassandra.table)
+        .`with`(QueryBuilder.set("value", entry.value))
+        .and(QueryBuilder.set("anomaly", entry.anomaly))
+        .where(QueryBuilder.eq("sensor", entry.sensor))
+        .and(QueryBuilder.eq("ts", System.currentTimeMillis))
+      session.execute(statement)
   }
 }

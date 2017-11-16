@@ -7,7 +7,6 @@ import scala.beans.BeanProperty
 class MqttConfig {
   @BeanProperty var broker = ""
   @BeanProperty var topic = ""
-  @BeanProperty var salt = ""
   @BeanProperty var bound = 100
   @BeanProperty var timeout = 200
   @BeanProperty var sensors: java.util.List[String] = new java.util.ArrayList[String]()
@@ -24,7 +23,6 @@ class CassandraConfig {
 class RedisConfig {
   @BeanProperty var address = ""
   @BeanProperty var port = 6379
-  @BeanProperty var salt = ""
 }
 
 class DashboardConfig {

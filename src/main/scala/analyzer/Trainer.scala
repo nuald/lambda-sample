@@ -15,13 +15,15 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.JavaConverters._
 
 object Trainer {
-  def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =
+  def props(cassandraClient: ActorRef, redisClient: RedisClient)
+           (implicit materializer: ActorMaterializer) =
     Props(classOf[Trainer], cassandraClient, redisClient, materializer)
 
   private final case object Tick
 }
 
-class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer)
+class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
+             (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Trainer._
 
@@ -30,7 +32,6 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mate
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  private val sealWriter = new Sealed[RandomForest](conf.redis.salt).writer
   implicit val timeout: Timeout = Timeout(conf.fullAnalyzer.timeout.millis)
 
   def createFittedModel(entries: List[Entry]): RandomForest = {
@@ -46,15 +47,15 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)(implicit mate
 
   override def receive: Receive = {
     case Tick =>
+      val serializer = new ClusterSerializer()
       val futures =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
             entries <- ask(cassandraClient, Full(sensor)).mapTo[List[Entry]]
           } yield {
             val rf = createFittedModel(entries)
-            sealWriter(rf) foreach { bytes =>
-              redisClient.hset(conf.fullAnalyzer.key, sensor, bytes)
-            }
+            val bytes = serializer.toBinary(rf)
+            redisClient.hset(conf.fullAnalyzer.key, sensor, bytes)
           }
 
       Future.sequence(futures) foreach { _ =>
