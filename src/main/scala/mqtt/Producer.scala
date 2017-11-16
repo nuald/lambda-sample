@@ -103,9 +103,7 @@ class Producer()(implicit materializer: ActorMaterializer)
           if (sensorState == "anomaly") 1 else 0
         )
         sealWriter(entry) foreach { bytes =>
-          val token = msgTopic.publish(new MqttMessage(bytes))
-          val messageId = token.getMessageId
-          log.debug(s"Published message: id -> $messageId, payload -> $entry")
+          msgTopic.publish(new MqttMessage(bytes))
         }
       }
     case Connected(binding) =>

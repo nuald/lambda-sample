@@ -84,13 +84,11 @@ class Dashboard(cassandraClient: ActorRef, endpoint: ActorRef)
     val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/"
     val cmd = "hey -n 500 -c 10 -t 10"
     val csvCmd = s"$cmd -o csv $url"
-    // First run, for JIT
-    Process(csvCmd) ! ProcessLogger(_ => ())
-    // Second run, for UI
+    // First run, for UI
     val runCmd = s"$cmd $url"
     log.info(s"Querying $url")
     Process(runCmd).!
-    // Third run, for stats
+    // Second run, for stats
     val stream = csvCmd lineStream_! ProcessLogger(line => ())
     val values = stream.flatMap { (line) => line match {
         case CsvPattern(responseTime, dnsLookup, dns, requestWrite, responseDelay, responseRead) =>

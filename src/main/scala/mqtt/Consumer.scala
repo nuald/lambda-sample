@@ -58,7 +58,6 @@ class Consumer(cluster: Cluster)(implicit materializer: ActorMaterializer)
 
   override def receive: Receive = {
     case Arrived(message) =>
-      log.debug(s"Message arrived: $message")
       sealReader(message.getPayload) foreach { entry =>
         val statement = QueryBuilder.update(conf.cassandra.table)
           .`with`(QueryBuilder.set("value", entry.value))

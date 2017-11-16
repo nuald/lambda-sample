@@ -60,10 +60,8 @@ object Main extends App {
 
       val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
 
-      val clientHost = akkaConfig.getString("akka.remote.netty.tcp.hostname")
-      val analyzerName = if (clientHost.isEmpty) "analyzer" else s"analyzer:$clientHost"
       val analyzerOpt = if (scoptConfig.noLocalAnalyzer) None else
-        Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), analyzerName))
+        Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer"))
 
       if (scoptConfig.isServer) {
         system.actorOf(Producer.props(), "producer")

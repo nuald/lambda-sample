@@ -17,6 +17,8 @@ num_tokens: 256
 start_native_transport: true
 native_transport_port: 9042
 
+start_rpc: false
+
 concurrent_reads: 32
 concurrent_writes: 32
 concurrent_counter_writes: 32
