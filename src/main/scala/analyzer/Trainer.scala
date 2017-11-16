@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import lib.CassandraClient.{Entry, Full}
+import lib.CassandraActor.{Entry, Full}
 import lib._
 import redis.RedisClient
 import smile.classification.{RandomForest, randomForest}
@@ -16,14 +16,14 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object Trainer {
-  def props(cassandraClient: ActorRef, redisClient: RedisClient)
+  def props(cassandraActor: ActorRef, redisClient: RedisClient)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Trainer], cassandraClient, redisClient, materializer)
+    Props(classOf[Trainer], cassandraActor, redisClient, materializer)
 
   private final case object Tick
 }
 
-class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
+class Trainer(cassandraActor: ActorRef, redisClient: RedisClient)
              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Trainer._
@@ -35,7 +35,7 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
   private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.fullAnalyzer.timeout.millis)
 
-  def createFittedModel(entries: List[Entry]): Try[RandomForest] = {
+  def createFittedModel(entries: Iterable[Entry]): Try[RandomForest] = {
     // Features are multi-dimensional, labels are integers
     val mapping = (x: Entry) => (Array(x.value), x.anomaly)
 
@@ -48,11 +48,11 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
 
   override def receive: Receive = {
     case Tick =>
-      val serializer = new ClusterSerializer()
+      val serializer = new BinarySerializer()
       val futures =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
-            entries <- ask(cassandraClient, Full(sensor)).mapTo[List[Entry]]
+            entries <- ask(cassandraActor, Full(sensor)).mapTo[Iterable[Entry]]
           } yield {
             createFittedModel(entries) match {
               case Success(rf) =>

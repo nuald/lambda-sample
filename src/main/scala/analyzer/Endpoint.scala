@@ -7,9 +7,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import lib._
 
 import scala.collection.mutable
@@ -35,8 +32,7 @@ class Endpoint(analyzerOpt: Option[ActorRef])
   private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.endpoint.timeout.millis)
 
-  val mapper = new ObjectMapper with ScalaObjectMapper
-  mapper.registerModule(DefaultScalaModule)
+  val serializer = new JsonSerializer()
 
   private var analyzers = analyzerOpt match {
     case Some(ref) => IndexedSeq(ref)
@@ -64,8 +60,8 @@ class Endpoint(analyzerOpt: Option[ActorRef])
     pathSingleSlash {
       get {
         if (analyzers.nonEmpty) {
-          onSuccess(getAnalyzer ? Analyze) { entries  =>
-            val json = mapper.writeValueAsString(entries)
+          onSuccess(ask(getAnalyzer, Analyze).mapTo[AllMeta]) { entries  =>
+            val json = serializer.toJson(entries)
             complete(HttpEntity(ContentTypes.`application/json`, json))
           }
         } else {

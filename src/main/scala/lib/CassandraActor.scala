@@ -9,10 +9,10 @@ import com.datastax.driver.core.querybuilder.QueryBuilder
 import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 
-object CassandraClient {
+object CassandraActor {
   def props(cluster: Cluster)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[CassandraClient], cluster, materializer)
+    Props(classOf[CassandraActor], cluster, materializer)
 
   final case class Entry(sensor: String, ts: java.util.Date, value: Double, anomaly: Int)
   final case class Recent(sensor: String)
@@ -22,11 +22,11 @@ object CassandraClient {
   final case object HistoryAll
 }
 
-class CassandraClient(cluster: Cluster)
-                     (implicit materializer: ActorMaterializer)
+class CassandraActor(cluster: Cluster)
+                    (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
-  import CassandraClient._
+  import CassandraActor._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher

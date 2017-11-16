@@ -7,8 +7,8 @@ import akka.event.LoggingAdapter
 import akka.pattern.{ask, pipe}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import lib.CassandraClient.{Entry, Recent}
-import lib.{ClusterSerializer, Config}
+import lib.CassandraActor.{Entry, Recent}
+import lib.{BinarySerializer, Config}
 import redis.RedisClient
 import smile.classification.RandomForest
 
@@ -30,11 +30,11 @@ final case class SensorMeta(
 final case class AllMeta(entries: List[SensorMeta])
 
 object Analyzer {
-  def props(cassandraClient: ActorRef, redisClient: RedisClient)
+  def props(cassandraActor: ActorRef, redisClient: RedisClient)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
+    Props(classOf[Analyzer], cassandraActor, redisClient, materializer)
 
-  def getAnomalyFast(value: Double, values: List[Double]): Double = {
+  def getAnomalyFast(value: Double, values: Iterable[Double]): Double = {
     val size = values.size
     val avg = values.sum / size
     val stddev = math.sqrt(
@@ -62,7 +62,7 @@ object Analyzer {
   }
 }
 
-class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)
+class Analyzer(cassandraActor: ActorRef, redisClient: RedisClient)
               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
@@ -78,7 +78,7 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)
   override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
   override def postStop(): Unit = cluster.unsubscribe(self)
 
-  def analyze(sensor: String, entries: List[Entry], rfOpt: Option[RandomForest]): SensorMeta = {
+  def analyze(sensor: String, entries: Iterable[Entry], rfOpt: Option[RandomForest]): SensorMeta = {
     val values = entries.map(_.value)
     val value = values.head
     val fastAnomaly = Analyzer.getAnomalyFast(value, values)
@@ -99,13 +99,13 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)
   }
 
   def fetchModel(sensor: String): Future[Option[RandomForest]] = {
-    val serializer = new ClusterSerializer()
+    val serializer = new BinarySerializer()
     for {
       bytesOpt <- redisClient.hget(conf.fullAnalyzer.key, sensor)
     } yield bytesOpt map { bytes =>
       serializer.fromBinary(
         bytes.toArray,
-        manifest = ClusterSerializer.RandomForestManifest
+        BinarySerializer.RandomForestManifest
       ).asInstanceOf[RandomForest]
     }
   }
@@ -115,7 +115,7 @@ class Analyzer(cassandraClient: ActorRef, redisClient: RedisClient)
       val futures: Seq[Future[SensorMeta]] =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
-            entries <- ask(cassandraClient, Recent(sensor)).mapTo[List[Entry]]
+            entries <- ask(cassandraActor, Recent(sensor)).mapTo[Iterable[Entry]]
             rf <- fetchModel(sensor)
           } yield analyze(sensor, entries, rf)
 

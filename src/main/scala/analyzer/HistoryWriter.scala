@@ -79,7 +79,7 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
     if (analyzers.nonEmpty) {
       jobCounter += 1
       val analyzer = analyzers(jobCounter % analyzers.size)
-      val serializer = new ClusterSerializer()
+      val serializer = new BinarySerializer()
       ask(analyzer, Analyze).mapTo[AllMeta] foreach { x =>
         for (meta <- x.entries) {
           val bytes = serializer.toBinary(meta)
@@ -90,14 +90,14 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
   }
 
   def needUpdate(sensor: String): Future[Boolean] = {
-    val serializer = new ClusterSerializer()
+    val serializer = new BinarySerializer()
     for {
       bytesOpt <- redisClient.hget(conf.fastAnalyzer.key, sensor)
     } yield {
       val force = bytesOpt map { bytes =>
         val meta = serializer.fromBinary(
           bytes.toArray,
-          manifest = ClusterSerializer.SensorMetaManifest
+          BinarySerializer.SensorMetaManifest
         ).asInstanceOf[SensorMeta]
 
         val notUpdatedYet = lastTimestamp(sensor) == meta.ts

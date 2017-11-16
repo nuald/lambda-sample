@@ -89,7 +89,7 @@ class Producer()(implicit materializer: ActorMaterializer)
     case Tick =>
       val r = scala.util.Random
       val bound = conf.mqtt.bound
-      val serializer = new ClusterSerializer()
+      val serializer = new BinarySerializer()
 
       for (sensor <- sensors) {
         val sensorState = state(sensor)

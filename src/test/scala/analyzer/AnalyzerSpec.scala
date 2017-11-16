@@ -7,6 +7,7 @@ import scala.language.postfixOps
 import lib.Common.using
 import java.io._
 
+import lib.BinarySerializer
 import smile.classification.{RandomForest, randomForest}
 
 class AnalyzerSpec extends FlatSpec with Matchers {
@@ -108,5 +109,32 @@ class AnalyzerSpec extends FlatSpec with Matchers {
         anomaly._1 should be (1)
         risky._1 should be (1)
     }
+  }
+
+  it should "serialize the model correctly" in {
+    val f = fixture
+    val serializer = new BinarySerializer()
+
+    // Fit the model
+    val rf = randomForest(f.features.toArray, f.labels.toArray)
+    val originalBytes = using(new ByteArrayOutputStream())(_.close) { ostream =>
+      using(new ObjectOutputStream(ostream))(_.close) { out =>
+        out.writeObject(rf)
+      }
+      ostream.toByteArray
+    }
+
+    val bytes = serializer.toBinary(rf)
+    val deserializedRf = serializer.fromBinary(
+      bytes,
+      BinarySerializer.RandomForestManifest
+    ).asInstanceOf[RandomForest]
+    val deserializedBytes = using(new ByteArrayOutputStream())(_.close) { ostream =>
+      using(new ObjectOutputStream(ostream))(_.close) { out =>
+        out.writeObject(deserializedRf)
+      }
+      ostream.toByteArray
+    }
+    originalBytes.get should contain theSameElementsInOrderAs deserializedBytes.get
   }
 }

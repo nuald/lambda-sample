@@ -63,22 +63,22 @@ object Main extends App {
         .addContactPoint(scoptConfig.cassandraHost)
         .withPoolingOptions(poolingOptions)
         .build()
-      val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
+      val cassandraActor = system.actorOf(CassandraActor.props(cluster), "cassandra-client")
 
       val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
 
       val analyzerOpt = if (scoptConfig.noLocalAnalyzer) None else
-        Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer"))
+        Some(system.actorOf(Analyzer.props(cassandraActor, redisClient), "analyzer"))
 
       if (scoptConfig.isServer) {
         system.actorOf(Producer.props(), "producer")
         system.actorOf(Consumer.props(cluster), "consumer")
 
         val endpoint = system.actorOf(Endpoint.props(analyzerOpt), "endpoint")
-        system.actorOf(Trainer.props(cassandraClient, redisClient), "trainer")
+        system.actorOf(Trainer.props(cassandraActor, redisClient), "trainer")
 
         system.actorOf(HistoryWriter.props(cluster, redisClient, analyzerOpt), "history-writer")
-        system.actorOf(Dashboard.props(cassandraClient, endpoint), "dashboard")
+        system.actorOf(Dashboard.props(cassandraActor, endpoint), "dashboard")
       }
 
       scala.sys.addShutdownHook {

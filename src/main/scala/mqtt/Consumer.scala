@@ -60,10 +60,10 @@ class Consumer(cluster: Cluster)
 
   override def receive: Receive = {
     case Arrived(message) =>
-      val serializer = new ClusterSerializer()
+      val serializer = new BinarySerializer()
       val entry = serializer.fromBinary(
         message.getPayload,
-        manifest = ClusterSerializer.MqttEntryManifest
+        BinarySerializer.MqttEntryManifest
       ).asInstanceOf[MqttEntry]
 
       val statement = QueryBuilder.update(conf.cassandra.table)

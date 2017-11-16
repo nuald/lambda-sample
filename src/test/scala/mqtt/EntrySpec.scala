@@ -1,7 +1,7 @@
 package mqtt
 
 import akka.event.LoggingAdapter
-import lib.ClusterSerializer
+import lib.BinarySerializer
 import mqtt.Producer.MqttEntry
 import org.scalatest._
 
@@ -12,7 +12,7 @@ class EntrySpec extends FlatSpec with Matchers {
     val sensor = "sensor 1"
     val value = 123
     val anomaly = 0
-    val serializer = new ClusterSerializer()
+    val serializer = new BinarySerializer()
     val bytes1 = serializer.toBinary(MqttEntry(sensor, value, anomaly))
     val bytes2 = serializer.toBinary(MqttEntry(sensor, value, anomaly))
     bytes1 should contain theSameElementsInOrderAs bytes2
@@ -22,11 +22,11 @@ class EntrySpec extends FlatSpec with Matchers {
     val sensor = "sensor 1"
     val value = 123
     val anomaly = 0
-    val serializer = new ClusterSerializer()
+    val serializer = new BinarySerializer()
 
     val originalEntry = MqttEntry(sensor, value, anomaly)
     val bytes = serializer.toBinary(originalEntry)
-    val entry = serializer.fromBinary(bytes, ClusterSerializer.MqttEntryManifest)
+    val entry = serializer.fromBinary(bytes, BinarySerializer.MqttEntryManifest)
     entry should be (originalEntry)
   }
 }

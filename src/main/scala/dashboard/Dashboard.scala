@@ -8,10 +8,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import analyzer.Endpoint.Stats
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import lib.CassandraClient.{HistoryAll, RecentAll}
+import lib.CassandraActor.{Entry, HistoryAll, RecentAll}
 import lib._
 
 import scala.concurrent.duration._
@@ -19,14 +16,14 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process._
 
 object Dashboard {
-  def props(cassandraClient: ActorRef, endpoint: ActorRef)
+  def props(cassandraActor: ActorRef, endpoint: ActorRef)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Dashboard], cassandraClient, endpoint, materializer)
+    Props(classOf[Dashboard], cassandraActor, endpoint, materializer)
 
   final case class Perf(timings: List[Double], actorStats: Map[String, Double])
 }
 
-class Dashboard(cassandraClient: ActorRef, endpoint: ActorRef)
+class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
                (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Dashboard._
@@ -37,28 +34,27 @@ class Dashboard(cassandraClient: ActorRef, endpoint: ActorRef)
   private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.dashboard.timeout.millis)
 
-  val mapper = new ObjectMapper with ScalaObjectMapper
-  mapper.registerModule(DefaultScalaModule)
+  val serializer = new JsonSerializer()
 
   private val route =
     path("mqtt") {
       get {
-        onSuccess(cassandraClient ? RecentAll) { entries =>
-          val json = mapper.writeValueAsString(entries)
+        onSuccess(ask(cassandraActor, RecentAll).mapTo[Iterable[Entry]]) { entries =>
+          val json = serializer.toJson(entries)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }
     } ~ path("history") {
       get {
-        onSuccess(cassandraClient ? HistoryAll) { entries =>
-          val json = mapper.writeValueAsString(entries)
+        onSuccess(ask(cassandraActor, HistoryAll).mapTo[Iterable[Entry]]) { entries =>
+          val json = serializer.toJson(entries)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }
     } ~ path("perf") {
       get {
         onSuccess(getPerf) { perf =>
-          val json = mapper.writeValueAsString(perf)
+          val json = serializer.toJson(perf)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }
