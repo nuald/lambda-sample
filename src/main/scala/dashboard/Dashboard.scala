@@ -39,14 +39,14 @@ class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
   private val route =
     path("mqtt") {
       get {
-        onSuccess(ask(cassandraActor, RecentAll).mapTo[List[Entry]]) { entries =>
+        onSuccess(ask(cassandraActor, RecentAll).mapTo[Iterable[Entry]]) { entries =>
           val json = serializer.toJson(entries)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       }
     } ~ path("history") {
       get {
-        onSuccess(ask(cassandraActor, HistoryAll).mapTo[List[Entry]]) { entries =>
+        onSuccess(ask(cassandraActor, HistoryAll).mapTo[Iterable[Entry]]) { entries =>
           val json = serializer.toJson(entries)
           complete(HttpEntity(ContentTypes.`application/json`, json))
         }

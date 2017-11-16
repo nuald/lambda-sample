@@ -72,20 +72,20 @@ class CassandraActor(cluster: Cluster)
       val entries =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield getEntries(values(sensor, conf.cassandra.table, conf.cassandra.recent))
-      sender() ! entries.flatten.toList
+      sender() ! entries.flatten
 
     case Recent(sensor) =>
       val entries = getEntries(values(sensor, conf.cassandra.table, conf.cassandra.recent))
-      sender() ! entries.toList
+      sender() ! entries
 
     case Full(sensor) =>
       val entries = getEntries(values(sensor, conf.cassandra.table, conf.cassandra.full))
-      sender() ! entries.toList
+      sender() ! entries
 
     case HistoryAll =>
       val entries =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield getMeta(values(sensor, conf.historyWriter.table, conf.cassandra.recent))
-      sender() ! entries.flatten.toList
+      sender() ! entries.flatten
   }
 }
