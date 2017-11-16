@@ -27,6 +27,7 @@ The data flow:
       * [Fitting the model](#fitting-the-model)
       * [Using the model](#using-the-model)
     * [Processing Cluster](#processing-cluster)
+      * [Performance testing](#performance-testing)
 
 ## Requirements
 
@@ -215,12 +216,27 @@ Run the servers (please use the external IP):
 
     $ scala start.sc server --server-host=<host>
 
+Run the client (please use the external IP):
+
+    $ scala start.sc client --server-host=<server-host> --client-host=<client-host> --client-port=<port>
+
+#### Performance testing
+
 By default, the server runs its own analyzer, however, it may affect
 the metrics due to local analyzer works much faster than the remote ones.
 To normalize the metrics you may use the `--no-local-analyzer` option: 
 
     $ scala start.sc server --server-host=<host> --no-local-analyzer
 
-Run the client (please use the external IP):
+The endpoint supports two modes for analyzing - the usual one and the stress-mode compatible.
+The latter one is required to eliminate the side-effects of connectivity issues to Cassandra
+and Redis (analyzers use the cached results instead of fetching the new data and recalculating):
 
-    $ scala start.sc client --server-host=<server-host> --client-host=<client-host> --client-port=<port>
+    $ curl http://localhost:8082/stress
+
+To manually get the performance metrics please use the hey tool:
+
+    $ hey -n 500 -c 10 -t 10 http://127.0.0.1:8082/
+    $ hey -n 500 -c 10 -t 10 http://127.0.0.1:8082/stress
+
+Otherwise the stats is available via the Dashboard.

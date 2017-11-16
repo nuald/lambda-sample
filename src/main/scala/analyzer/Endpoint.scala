@@ -68,6 +68,17 @@ class Endpoint(analyzerOpt: Option[ActorRef])
           complete(StatusCodes.InternalServerError, "No analyzer has been registered!")
         }
       }
+    } ~ path("stress") {
+      get {
+        if (analyzers.nonEmpty) {
+          onSuccess(ask(getAnalyzer, StressAnalyze).mapTo[AllMeta]) { entries  =>
+            val json = serializer.toJson(entries)
+            complete(HttpEntity(ContentTypes.`application/json`, json))
+          }
+        } else {
+          complete(StatusCodes.InternalServerError, "No analyzer has been registered!")
+        }
+      }
     }
 
   var httpBinding: Option[ServerBinding] = None

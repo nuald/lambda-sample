@@ -17,6 +17,7 @@ import scala.concurrent.duration._
 import scala.collection.JavaConverters._
 
 case object Analyze
+case object StressAnalyze
 case object Registration
 
 final case class SensorMeta(
@@ -110,6 +111,8 @@ class Analyzer(cassandraActor: ActorRef, redisClient: RedisClient)
     }
   }
 
+  var lastMeta: Option[AllMeta] = None
+
   override def receive: Receive = {
     case Analyze =>
       val futures: Seq[Future[SensorMeta]] =
@@ -119,8 +122,17 @@ class Analyzer(cassandraActor: ActorRef, redisClient: RedisClient)
             rf <- fetchModel(sensor)
           } yield analyze(sensor, entries, rf)
 
-      Future.sequence(futures) map {x => AllMeta(x.toList)} pipeTo sender()
+      Future.sequence(futures) map {x =>
+        val meta = AllMeta(x.toList)
+        lastMeta = Some(meta)
+        meta
+      } pipeTo sender()
 
+    case StressAnalyze =>
+      lastMeta match {
+        case Some(x) => sender() ! x
+        case None => self forward Analyze
+      }
     case state: CurrentClusterState =>
       state.members.filter(_.status == MemberStatus.Up) foreach register
 

@@ -77,7 +77,7 @@ class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
   private val CsvPattern = raw"""([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+)""".r
 
   def runHey: Future[List[Double]] = Future {
-    val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/"
+    val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/stress"
     val cmd = "hey -n 500 -c 10 -t 10"
     val csvCmd = s"$cmd -o csv $url"
     // First run, for UI

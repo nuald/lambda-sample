@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 
 import akka.event.LoggingAdapter
 import akka.serialization.SerializerWithStringManifest
-import analyzer.{AllMeta, Analyze, Registration, SensorMeta}
+import analyzer._
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -16,6 +16,7 @@ import scala.util.Try
 
 object BinarySerializer {
   val AnalyzeManifest: String = Analyze.getClass.getName
+  val StressAnalyzeManifest: String = StressAnalyze.getClass.getName
   val RegistrationManifest: String = Registration.getClass.getName
   val AllMetaManifest: String = AllMeta.getClass.getName
   val RandomForestManifest: String = classOf[RandomForest].getName
@@ -66,6 +67,7 @@ class BinarySerializer extends SerializerWithStringManifest {
     } else {
       manifest match {
         case AnalyzeManifest => Analyze
+        case StressAnalyzeManifest => StressAnalyze
         case RegistrationManifest => Registration
         case AllMetaManifest => mapper.readValue[AllMeta](bytes)
         case SensorMetaManifest => mapper.readValue[SensorMeta](bytes)
@@ -77,6 +79,7 @@ class BinarySerializer extends SerializerWithStringManifest {
   override def manifest(obj: AnyRef): String = {
     obj match {
       case _: Analyze.type => AnalyzeManifest
+      case _: StressAnalyze.type => StressAnalyzeManifest
       case _: Registration.type => RegistrationManifest
       case _: AllMeta => AllMetaManifest
       case _: RandomForest => RandomForestManifest
