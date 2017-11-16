@@ -12,16 +12,20 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import lib._
 
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 object Endpoint {
   def props(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMaterializer) =
     Props(classOf[Endpoint], analyzerOpt, materializer)
+
+  final case object Stats
 }
 
 class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
+  import Endpoint._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -36,15 +40,29 @@ class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMateri
     case Some(ref) => IndexedSeq(ref)
     case None => IndexedSeq()
   }
+  private val stats = mutable.Map[String, Int]()
   var jobCounter = 0
+
+  def getAnalyzer: ActorRef = {
+    jobCounter += 1
+    val analyzer = analyzers(jobCounter % analyzers.size)
+    val name = analyzer.toString
+    val count = stats.getOrElse(name, 0)
+    stats(name) = count + 1
+    analyzer
+  }
+
+  def getStats: Map[String, Double] = {
+    val sum = stats.values.sum
+    val mapped = stats map {case (k, v) => (k, v.toDouble / sum)}
+    mapped.toMap
+  }
 
   private val route =
     pathSingleSlash {
       get {
         if (analyzers.nonEmpty) {
-          jobCounter += 1
-          val analyzer = analyzers(jobCounter % analyzers.size)
-          onSuccess(ask(analyzer, Analyze).mapTo[AllMeta]) { entries  =>
+          onSuccess(getAnalyzer ? Analyze) { entries  =>
             val json = mapper.writeValueAsString(entries)
             complete(HttpEntity(ContentTypes.`application/json`, json))
           }
@@ -71,6 +89,9 @@ class Endpoint(analyzerOpt: Option[ActorRef])(implicit materializer: ActorMateri
   }
 
   override def receive: Receive = {
+    case Stats =>
+      sender() ! getStats
+
     case Connected(binding) =>
       httpBinding = Some(binding)
 

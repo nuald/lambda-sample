@@ -52,25 +52,28 @@ object Main extends App {
         ConfigFactory.load()
       }
 
-      implicit val system: ActorSystem = ActorSystem("ClusterSystem", akkaConfig)
+      implicit val system: ActorSystem = ActorSystem("cluster", akkaConfig)
       implicit val materializer: ActorMaterializer = ActorMaterializer()
 
       val cluster = Cluster.builder().addContactPoint(scoptConfig.cassandraHost).build()
       val cassandraClient = system.actorOf(CassandraClient.props(cluster), "cassandra-client")
 
       val redisClient = RedisClient(scoptConfig.redisHost, conf.redis.port)
+
+      val clientHost = akkaConfig.getString("akka.remote.netty.tcp.hostname")
+      val analyzerName = if (clientHost.isEmpty) "analyzer" else s"analyzer:$clientHost"
       val analyzerOpt = if (scoptConfig.noLocalAnalyzer) None else
-        Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer"))
+        Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), analyzerName))
 
       if (scoptConfig.isServer) {
         system.actorOf(Producer.props(), "producer")
         system.actorOf(Consumer.props(cluster), "consumer")
 
-        system.actorOf(Endpoint.props(analyzerOpt), "endpoint")
+        val endpoint = system.actorOf(Endpoint.props(analyzerOpt), "endpoint")
         system.actorOf(Trainer.props(cassandraClient, redisClient), "trainer")
 
         system.actorOf(HistoryWriter.props(cluster, redisClient, analyzerOpt), "history-writer")
-        system.actorOf(Dashboard.props(cassandraClient), "dashboard")
+        system.actorOf(Dashboard.props(cassandraClient, endpoint), "dashboard")
       }
 
       scala.sys.addShutdownHook {

@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import analyzer.Endpoint.Stats
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -14,16 +15,21 @@ import lib.CassandraClient.{HistoryAll, RecentAll}
 import lib._
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process._
 
 object Dashboard {
-  def props(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer) =
-    Props(classOf[Dashboard], cassandraClient, materializer)
+  def props(cassandraClient: ActorRef, endpoint: ActorRef)
+           (implicit materializer: ActorMaterializer) =
+    Props(classOf[Dashboard], cassandraClient, endpoint, materializer)
+
+  final case class Perf(timings: List[Double], actorStats: Map[String, Double])
 }
 
-class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMaterializer)
+class Dashboard(cassandraClient: ActorRef, endpoint: ActorRef)
+               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
+  import Dashboard._
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -51,9 +57,10 @@ class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMateriali
       }
     } ~ path("perf") {
       get {
-        val values = runHey
-        val json = mapper.writeValueAsString(values)
-        complete(HttpEntity(ContentTypes.`application/json`, json))
+        onSuccess(getPerf) { perf =>
+          val json = mapper.writeValueAsString(perf)
+          complete(HttpEntity(ContentTypes.`application/json`, json))
+        }
       }
     }
 
@@ -66,9 +73,15 @@ class Dashboard(cassandraClient: ActorRef)(implicit materializer: ActorMateriali
     self
   )
 
+  def getPerf: Future[Perf] =
+    for {
+      actorStats <- ask(endpoint, Stats).mapTo[Map[String, Double]]
+      timings <- runHey
+    } yield Perf(timings, actorStats)
+
   private val CsvPattern = raw"""([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+)""".r
 
-  def runHey: List[Double] = {
+  def runHey: Future[List[Double]] = Future {
     val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/"
     val cmd = "hey -n 500 -c 10 -t 10"
     val csvCmd = s"$cmd -o csv $url"

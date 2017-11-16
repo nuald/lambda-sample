@@ -27,7 +27,7 @@ final case class SensorMeta(
   avgAnomaly: Double
 ) extends Serializable
 
-final case class AllMeta(entries: List[SensorMeta]) extends Serializable
+final case class AllMeta(entries: List[SensorMeta])
 
 object Analyzer {
   def props(cassandraClient: ActorRef, redisClient: RedisClient)(implicit materializer: ActorMaterializer) =

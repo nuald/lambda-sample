@@ -202,8 +202,18 @@ $(function () {
       if (error) {
         throw error;
       }
-      perfHistory.unshift(data);
+      perfHistory.unshift(data.timings);
       drawBox(perfHistory);
+      var stats = data.actorStats;
+      var html = "<table class='table'><thead><tr><th>Actor</th><th>Load (%)</th></tr></thead><tbody>";
+      for (var key in stats) {
+        if (stats.hasOwnProperty(key)) {
+          var value = Math.floor(stats[key] * 100);
+          html += "<tr><td>" + key + "</td><td>" + value + "</td></tr>";
+        }
+      }
+      html += "</tbody></table>";
+      $("#actors-load").html(html);
       $('#response').LoadingOverlay('hide');
     });
   });
