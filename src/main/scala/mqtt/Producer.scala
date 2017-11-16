@@ -8,7 +8,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import org.clapper.scalasti.ST
 import org.eclipse.paho.client.mqttv3._
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import lib._
 
 import scala.collection.JavaConverters._
@@ -18,8 +17,9 @@ import scala.io.Source
 import scala.util.{Failure, Success}
 
 object Producer {
-  def props()(implicit materializer: ActorMaterializer) =
-    Props(classOf[Producer], materializer)
+  def props(mqttClient: MqttClient)
+           (implicit materializer: ActorMaterializer) =
+    Props(classOf[Producer], mqttClient, materializer)
 
   final case class MqttEntry(sensor: String, value: Double, anomaly: Int)
   final case class SensorModel(name: String, isNormal: Boolean)
@@ -27,7 +27,8 @@ object Producer {
   private final case object Tick
 }
 
-class Producer()(implicit materializer: ActorMaterializer)
+class Producer(mqttClient: MqttClient)
+              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Producer._
 
@@ -36,12 +37,7 @@ class Producer()(implicit materializer: ActorMaterializer)
   implicit val logger: LoggingAdapter = log
 
   private val conf = Config.get
-  val client = new MqttClient(conf.mqtt.broker,
-    MqttClient.generateClientId,
-    new MemoryPersistence
-  )
-  client.connect()
-  private val msgTopic = client.getTopic(conf.mqtt.topic)
+  private val msgTopic = mqttClient.getTopic(conf.mqtt.topic)
 
   private val sensors = conf.mqtt.sensors.asScala
   private var state = sensors.map(k => (k, "normal")).toMap
@@ -82,7 +78,7 @@ class Producer()(implicit materializer: ActorMaterializer)
       case Some(x) => x.unbind
       case None =>
     }
-    client.disconnect()
+    mqttClient.disconnect()
   }
 
   override def receive: Receive = {

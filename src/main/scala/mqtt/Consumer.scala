@@ -4,7 +4,6 @@ import akka.actor._
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import org.eclipse.paho.client.mqttv3._
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
@@ -13,14 +12,14 @@ import mqtt.Producer.MqttEntry
 import scala.concurrent.ExecutionContext
 
 object Consumer {
-  def props(cluster: Cluster)
+  def props(mqttClient: MqttClient, cluster: Cluster)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Consumer], cluster, materializer)
+    Props(classOf[Consumer], mqttClient, cluster, materializer)
 
   final case class Arrived(message: MqttMessage)
 }
 
-class Consumer(cluster: Cluster)
+class Consumer(mqttClient: MqttClient, cluster: Cluster)
               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Consumer._
@@ -32,15 +31,9 @@ class Consumer(cluster: Cluster)
   private val conf = Config.get
   private val session = cluster.connect(conf.cassandra.keyspace)
 
-  val client = new MqttClient(
-    conf.mqtt.broker,
-    MqttClient.generateClientId,
-    new MemoryPersistence
-  )
-  client.connect()
-  client.subscribe(conf.mqtt.topic)
+  mqttClient.subscribe(conf.mqtt.topic)
 
-  client.setCallback(new MqttCallback {
+  mqttClient.setCallback(new MqttCallback {
     override def messageArrived(topic: String, message: MqttMessage): Unit = {
       self ! Arrived(message)
     }
@@ -54,7 +47,7 @@ class Consumer(cluster: Cluster)
   })
 
   override def postStop(): Unit = {
-    client.disconnect()
+    mqttClient.disconnect()
     session.close()
   }
 
