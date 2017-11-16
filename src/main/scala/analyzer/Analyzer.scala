@@ -115,7 +115,7 @@ class Analyzer(cassandraActor: ActorRef, redisClient: RedisClient)
       val futures: Seq[Future[SensorMeta]] =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
-            entries <- ask(cassandraActor, Recent(sensor)).mapTo[Iterable[Entry]]
+            entries <- ask(cassandraActor, Recent(sensor)).mapTo[List[Entry]]
             rf <- fetchModel(sensor)
           } yield analyze(sensor, entries, rf)
 

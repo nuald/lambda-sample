@@ -52,7 +52,7 @@ class Trainer(cassandraActor: ActorRef, redisClient: RedisClient)
       val futures =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
-            entries <- ask(cassandraActor, Full(sensor)).mapTo[Iterable[Entry]]
+            entries <- ask(cassandraActor, Full(sensor)).mapTo[List[Entry]]
           } yield {
             createFittedModel(entries) match {
               case Success(rf) =>
