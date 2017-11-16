@@ -74,10 +74,9 @@ class Dashboard(cassandraClient: ActorRef, endpoint: ActorRef)
   )
 
   def getPerf: Future[Perf] =
-    for {
-      actorStats <- ask(endpoint, Stats).mapTo[Map[String, Double]]
-      timings <- runHey
-    } yield Perf(timings, actorStats)
+    runHey flatMap (timings =>
+      ask(endpoint, Stats).mapTo[Map[String, Double]] map (Perf(timings, _))
+    )
 
   private val CsvPattern = raw"""([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+)""".r
 

@@ -39,11 +39,7 @@ $(function () {
       width = vis.attr('width'),
       height = vis.attr('height');
 
-    d3.json(src).get(function(error, data) {
-      if (error) {
-        throw error;
-      }
-
+    $.getJSON(src, function(data) {
       function getYMin() {
         return d3.min(data, function(d) {
           return d3.min(yKeys, function(yKey) { return d[yKey] });
@@ -197,11 +193,9 @@ $(function () {
   }
 
   $("#evaluate").click(function() {
+    $(".alert").alert('close');
     $('#response').LoadingOverlay('show');
-    d3.json("perf").get(function(error, data) {
-      if (error) {
-        throw error;
-      }
+    $.getJSON("perf", function(data) {
       perfHistory.unshift(data.timings);
       drawBox(perfHistory);
       var stats = data.actorStats;
@@ -214,6 +208,17 @@ $(function () {
       }
       html += "</tbody></table>";
       $("#actors-load").html(html);
+      $('#response').LoadingOverlay('hide');
+    }).fail(function(jqxhr, textStatus, error) {
+      var err = "Request Failed: " + error;
+      var html = "<div class='alert alert-danger alert-dismissible' role='alert'>"
+       + err
+       + "  <button type='button' class='close' data-dismiss='alert' aria-label='Close'>"
+       + "    <span aria-hidden='true'>&times;</span>"
+       + "  </button>"
+       + "</div>";
+      $("#alerts").html(html);
+      $(".alert").alert();
       $('#response').LoadingOverlay('hide');
     });
   });
