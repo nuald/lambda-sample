@@ -13,6 +13,7 @@ import smile.classification.{RandomForest, randomForest}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 object Trainer {
   def props(cassandraClient: ActorRef, redisClient: RedisClient)
@@ -34,7 +35,7 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
   private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.fullAnalyzer.timeout.millis)
 
-  def createFittedModel(entries: List[Entry]): RandomForest = {
+  def createFittedModel(entries: List[Entry]): Try[RandomForest] = {
     // Features are multi-dimensional, labels are integers
     val mapping = (x: Entry) => (Array(x.value), x.anomaly)
 
@@ -42,7 +43,7 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
     val (features, labels) = entries.map(mapping).unzip
 
     // Fit the model
-    randomForest(features.toArray, labels.toArray)
+    Try(randomForest(features.toArray, labels.toArray))
   }
 
   override def receive: Receive = {
@@ -53,9 +54,13 @@ class Trainer(cassandraClient: ActorRef, redisClient: RedisClient)
           yield for {
             entries <- ask(cassandraClient, Full(sensor)).mapTo[List[Entry]]
           } yield {
-            val rf = createFittedModel(entries)
-            val bytes = serializer.toBinary(rf)
-            redisClient.hset(conf.fullAnalyzer.key, sensor, bytes)
+            createFittedModel(entries) match {
+              case Success(rf) =>
+                val bytes = serializer.toBinary(rf)
+                redisClient.hset(conf.fullAnalyzer.key, sensor, bytes)
+              case Failure(e) =>
+                log.error(e, s"Fitting model for $sensor failed:")
+            }
           }
 
       Future.sequence(futures) foreach { _ =>

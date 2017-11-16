@@ -63,7 +63,7 @@ class Consumer(cluster: Cluster)
       val serializer = new ClusterSerializer()
       val entry = serializer.fromBinary(
         message.getPayload,
-        manifest = ClusterSerializer.RandomForestManifest
+        manifest = ClusterSerializer.MqttEntryManifest
       ).asInstanceOf[MqttEntry]
 
       val statement = QueryBuilder.update(conf.cassandra.table)
