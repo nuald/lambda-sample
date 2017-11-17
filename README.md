@@ -48,8 +48,28 @@ Optionally you may install:
 
 ### Cluster client requirements
 
-The cluster clients only uses Scala shell and SBT. To verify the installations, please use:
+The cluster clients only use Scala shell and SBT (and Git to clone the source codes).
+See the platform specific notes below.
 
+**MacOS** You may use [Homebrew](https://brew.sh/):
+
+    $ brew install git scala sbt
+
+**Windows** You may use [Scoop](http://scoop.sh/):
+
+    $ scoop install git scala sbt
+
+**Linux** Please use the package manager shipped with the distribution.
+If the repositories do not contain SBT, then follow the
+[Installing sbt on Linux](http://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html)
+instructions. For example, you may use pacman for ArchLinux:
+
+    $ pacman -S git scala sbt
+
+To verify the installations, please clone the project and use SBT and Scala script in a dry-run mode:
+
+    $ git clone https://github.com/nuald/lambda-sample.git
+    $ cd lambda-sample
     $ sbt compile
     $ scala start.sc client --dry-run
 
@@ -244,7 +264,7 @@ Run the client (please use the external IP):
 
 By default, the server runs its own analyzer, however, it may affect
 the metrics due to local analyzer works much faster than the remote ones.
-To normalize the metrics you may use the `--no-local-analyzer` option: 
+To normalize the metrics you may use the `--no-local-analyzer` option:
 
     $ scala start.sc server --server-host=<host> --no-local-analyzer
 
