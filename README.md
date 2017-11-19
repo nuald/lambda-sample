@@ -1,6 +1,10 @@
 # A Sample of Lambda architecture project
 
 The boilerplate project for detecting IoT sensor anomalies using the Lambda architecture.
+It assumes two data processing layers: the fast one (to ensure SLA requirements for
+latency) and another one based on machine learning (to ensure low rate of false
+positives). One may imagine it as a data flow graph from one origin (events)
+with two branches (those processing layers), hence the Lambda architecture (λ symbol).
 
 The system layers:
 
@@ -10,10 +14,17 @@ The system layers:
 
 The data flow:
 
- 1. MQTT messages are produced by the IoT emulator ([Producer](src/main/scala/mqtt/Producer.scala) actor)
- 2. MQTT subscriber saves the messages into Cassandra database ([Consumer](src/main/scala/mqtt/Consumer.scala) actor)
- 3. The Random Forest model is constantly trained by the messages ([Trainer](src/main/scala/analyzer/Trainer.scala) actor)
- 4. HTTP endpoint requests the computation using the trained model and heuristics ([Analyzer](src/main/scala/analyzer/Analyzer.scala) actor)
+ 1. MQTT messages are produced by the IoT emulator ([Producer](src/main/scala/mqtt/Producer.scala) actor). Messages are serialized into [Smile binary format](https://github.com/FasterXML/smile-format-specification).
+ 2. MQTT subscriber saves the messages into Cassandra database ([Consumer](src/main/scala/mqtt/Consumer.scala) actor).
+ 3. The Random Forest model is constantly trained by the messages ([Trainer](src/main/scala/analyzer/Trainer.scala) actor). The model is saved into Redis using Java serialization.
+ 4. HTTP endpoint requests the computation using the trained model and heuristics ([Analyzer](src/main/scala/analyzer/Analyzer.scala) actor).
+
+Data serialization is an important topic, because it affects the performance of
+the whole system (please note the speed of the serialization/deserialization process,
+the size of the generated content as it should be transferred over the network,
+saved to/loaded from databases therefore affecting latency). [Protocol buffers](https://developers.google.com/protocol-buffers/)
+is a good candidate for the data serialization as it meets the requirements and
+supported by many programming languages.
 
 # Table of Contents
 
@@ -77,6 +88,10 @@ It should create the target jar (`target/scala-2.12` directory) and configuratio
 
 ## Usage
 
+Run the spec-based unit tests to ensure that the code works correctly:
+
+    $ sbt test
+
 Configure the Cassandra data store:
 
     $ cqlsh -f resources/cassandra/schema.sql
@@ -100,7 +115,8 @@ otherwise the [Trainer](src/main/scala/analyzer/Trainer.scala) shows the errors.
 
 ### IoT emulation
 
-Modify the sensor values with the Producer: http://localhost:8081
+Modify the sensor values with the Producer (it's simultaneously the MQTT publisher
+and HTTP endpoint to control the events flow): http://localhost:8081
 
 ![](resources/img/producer.png?raw=true)
 
@@ -169,7 +185,7 @@ val values = features.flatten.take(200)
 
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
-samples.map(sample => analyzer.FastAnalyzer.getAnomaly(sample, values))
+samples.map(sample => analyzer.Analyzer.getAnomalyFast(sample, values))
 
 ```
 
@@ -246,11 +262,16 @@ Check the latest analyzer snapshots:
     $ redis-cli hgetall fast-analysis
     $ redis-cli hgetall full-analysis
 
-*NOTE: For deleting the shapshot please use: `$ redis-cli del fast-analysis full-analysis`.*
+*NOTE: For deleting the shapshots please use: `$ redis-cli del fast-analysis full-analysis`.*
 
 Verify the history of detecting anomalies using CQL:
 
     $ cqlsh -e "select * from sandbox.analysis limit 10;"
+
+In most cases it's better to use specialized solutions for clustering,
+for example, [Kubernetes](https://developer.lightbend.com/guides/akka-cluster-kubernetes-k8s-deploy/).
+However, in the sample project the server and clients are configured manually
+for the demonstration purposes.
 
 Run the servers (please use the external IP):
 
