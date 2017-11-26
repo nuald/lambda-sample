@@ -1,6 +1,7 @@
 package lib
 
 import akka.actor._
+import akka.pattern.ask
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.server._
@@ -9,16 +10,19 @@ import akka.http.scaladsl.server.Directives.{path, _}
 import akka.stream.ActorMaterializer
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import java.nio.file.Paths
 
 import ContentTypeResolver.Default
+import akka.util.Timeout
 
-final case class Connected(binding: ServerBinding)
-final case class ConnectionFailure(ex: Throwable)
+case object HttpStart
+case object HttpRoute
+final case class HttpConnected(binding: ServerBinding)
+final case class HttpConnectionFailure(ex: Throwable)
 
 class HttpClient(
-  handler: Route,
   address: String,
   port: Int,
   index: Option[String],
@@ -28,23 +32,27 @@ class HttpClient(
   materializer: ActorMaterializer,
   executionContext: ExecutionContext
 ) {
-  def cdnExtended: Route = {
-    val cdnHandler = handler ~
-      path("cdn" / Segments) { segments =>
-        getFromFile(Paths.get("resources", segments: _*).toString)
-      }
+  implicit val timeout: Timeout = Timeout(1.seconds)
 
-    index match {
-      case Some(path) => cdnHandler ~
-        pathSingleSlash {
-          getFromFile(Paths.get("resources", path).toString)
+  supervisor.ask(HttpRoute).mapTo[Route] foreach { handler =>
+    def cdnExtended = {
+      val cdnHandler = handler ~
+        path("cdn" / Segments) { segments =>
+          getFromFile(Paths.get("resources", segments: _*).toString)
         }
-      case None => cdnHandler
-    }
-  }
 
-  Http().bindAndHandle(cdnExtended, address, port).onComplete {
-    case Success(binding) => supervisor ! Connected(binding)
-    case Failure(ex) => supervisor ! ConnectionFailure(ex)
+      index match {
+        case Some(path) => cdnHandler ~
+          pathSingleSlash {
+            getFromFile(Paths.get("resources", path).toString)
+          }
+        case None => cdnHandler
+      }
+    }
+
+    Http().bindAndHandle(cdnExtended, address, port).onComplete {
+      case Success(binding) => supervisor ! HttpConnected(binding)
+      case Failure(ex) => supervisor ! HttpConnectionFailure(ex)
+    }
   }
 }

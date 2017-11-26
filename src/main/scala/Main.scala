@@ -120,14 +120,19 @@ object Main extends App {
               system.actorOf(Trainer.props(cassandraActor, redisClient), "trainer")
 
               system.actorOf(HistoryWriter.props(cluster, redisClient, analyzerOpt), "history-writer")
-              system.actorOf(Dashboard.props(cassandraActor, endpoint), "dashboard")
+              val dashboard = system.actorOf(Dashboard.props(cassandraActor, endpoint), "dashboard")
+
+              endpoint ! HttpStart
+              dashboard ! HttpStart
             }
           }
 
           if (scoptConfig.isServer) {
             getConnectedMqtt foreach { mqttClient =>
-              system.actorOf(Producer.props(mqttClient), "producer")
+              val producer = system.actorOf(Producer.props(mqttClient), "producer")
               system.actorOf(Consumer.props(mqttClient, cluster), "consumer")
+
+              producer ! HttpStart
             }
           }
 

@@ -41,7 +41,7 @@ class Endpoint(analyzerOpt: Option[ActorRef])
   private val stats = mutable.Map[String, Int]()
   var jobCounter = 0
 
-  def getAnalyzer: ActorRef = {
+  private def pickAnalyzer(): ActorRef = {
     jobCounter += 1
     val analyzer = analyzers(jobCounter % analyzers.size)
     val name = analyzer.toString
@@ -56,39 +56,8 @@ class Endpoint(analyzerOpt: Option[ActorRef])
     mapped.toMap
   }
 
-  private val route =
-    pathSingleSlash {
-      get {
-        if (analyzers.nonEmpty) {
-          onSuccess(ask(getAnalyzer, Analyze).mapTo[AllMeta]) { entries  =>
-            val json = serializer.toJson(entries)
-            complete(HttpEntity(ContentTypes.`application/json`, json))
-          }
-        } else {
-          complete(StatusCodes.InternalServerError, "No analyzer has been registered!")
-        }
-      }
-    } ~ path("stress") {
-      get {
-        if (analyzers.nonEmpty) {
-          onSuccess(ask(getAnalyzer, StressAnalyze).mapTo[AllMeta]) { entries  =>
-            val json = serializer.toJson(entries)
-            complete(HttpEntity(ContentTypes.`application/json`, json))
-          }
-        } else {
-          complete(StatusCodes.InternalServerError, "No analyzer has been registered!")
-        }
-      }
-    }
-
   var httpBinding: Option[ServerBinding] = None
-  val httpClient = new HttpClient(
-    route,
-    conf.endpoint.address,
-    conf.endpoint.port,
-    None,
-    self
-  )
+  var httpClient: Option[HttpClient] = None
 
   override def postStop(): Unit = {
     httpBinding match {
@@ -98,13 +67,46 @@ class Endpoint(analyzerOpt: Option[ActorRef])
   }
 
   override def receive: Receive = {
+    case HttpStart =>
+      httpClient = Some(new HttpClient(
+        conf.endpoint.address,
+        conf.endpoint.port,
+        None,
+        self
+      ))
+
+    case HttpRoute =>
+      sender() ! pathSingleSlash {
+        get {
+          if (analyzers.nonEmpty) {
+            onSuccess(ask(pickAnalyzer(), Analyze).mapTo[AllMeta]) { entries  =>
+              val json = serializer.toJson(entries)
+              complete(HttpEntity(ContentTypes.`application/json`, json))
+            }
+          } else {
+            complete(StatusCodes.InternalServerError, "No analyzer has been registered!")
+          }
+        }
+      } ~ path("stress") {
+        get {
+          if (analyzers.nonEmpty) {
+            onSuccess(ask(pickAnalyzer(), StressAnalyze).mapTo[AllMeta]) { entries  =>
+              val json = serializer.toJson(entries)
+              complete(HttpEntity(ContentTypes.`application/json`, json))
+            }
+          } else {
+            complete(StatusCodes.InternalServerError, "No analyzer has been registered!")
+          }
+        }
+      }
+
     case Stats =>
       sender() ! getStats
 
-    case Connected(binding) =>
+    case HttpConnected(binding) =>
       httpBinding = Some(binding)
 
-    case ConnectionFailure(ex) =>
+    case HttpConnectionFailure(ex) =>
       log.error(s"Failed to establish HTTP connection $ex")
 
     case Registration if !analyzers.contains(sender()) =>

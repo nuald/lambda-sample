@@ -42,36 +42,8 @@ class Producer(mqttClient: MqttClient)
   private val sensors = conf.mqtt.sensors.asScala
   private var state = sensors.map(k => (k, "normal")).toMap
 
-  private val route =
-    path("update") {
-      post {
-        formFieldMap { fields =>
-          state = fields
-          complete("OK")
-        }
-      }
-    } ~
-    pathSingleSlash {
-      get {
-        val src = Source.fromFile("resources/producer/index.html").mkString
-        val model = sensors.map(name => SensorModel(name, state(name) == "normal"))
-        val template = ST(src, '$', '$').add("sensors", model)
-        template.render() match {
-          case Success(dst) =>
-            complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))
-          case Failure(ex) => complete(StatusCodes.InternalServerError, ex)
-        }
-      }
-    }
-
   var httpBinding: Option[ServerBinding] = None
-  val httpClient = new HttpClient(
-    route,
-    conf.producer.address,
-    conf.producer.port,
-    None,
-    self
-  )
+  var httpClient: Option[HttpClient] = None
 
   override def postStop(): Unit = {
     httpBinding match {
@@ -102,9 +74,41 @@ class Producer(mqttClient: MqttClient)
         val bytes = serializer.toBinary(entry)
         msgTopic.publish(new MqttMessage(bytes))
       }
-    case Connected(binding) =>
+
+    case HttpStart =>
+      httpClient = Some(new HttpClient(
+        conf.producer.address,
+        conf.producer.port,
+        None,
+        self
+      ))
+
+    case HttpRoute =>
+      sender() ! path("update") {
+        post {
+          formFieldMap { fields =>
+            state = fields
+            complete("OK")
+          }
+        }
+      } ~
+        pathSingleSlash {
+          get {
+            val src = Source.fromFile("resources/producer/index.html").mkString
+            val model = sensors.map(name => SensorModel(name, state(name) == "normal"))
+            val template = ST(src, '$', '$').add("sensors", model)
+            template.render() match {
+              case Success(dst) =>
+                complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))
+              case Failure(ex) => complete(StatusCodes.InternalServerError, ex)
+            }
+          }
+        }
+
+    case HttpConnected(binding) =>
       httpBinding = Some(binding)
-    case ConnectionFailure(ex) =>
+
+    case HttpConnectionFailure(ex) =>
       log.error(s"Failed to establish HTTP connection $ex")
   }
 

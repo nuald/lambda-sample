@@ -36,38 +36,8 @@ class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
 
   val serializer = new JsonSerializer()
 
-  private val route =
-    path("mqtt") {
-      get {
-        onSuccess(ask(cassandraActor, RecentAll).mapTo[Iterable[Entry]]) { entries =>
-          val json = serializer.toJson(entries)
-          complete(HttpEntity(ContentTypes.`application/json`, json))
-        }
-      }
-    } ~ path("history") {
-      get {
-        onSuccess(ask(cassandraActor, HistoryAll).mapTo[Iterable[Entry]]) { entries =>
-          val json = serializer.toJson(entries)
-          complete(HttpEntity(ContentTypes.`application/json`, json))
-        }
-      }
-    } ~ path("perf") {
-      get {
-        onSuccess(getPerf) { perf =>
-          val json = serializer.toJson(perf)
-          complete(HttpEntity(ContentTypes.`application/json`, json))
-        }
-      }
-    }
-
   var httpBinding: Option[ServerBinding] = None
-  val httpClient = new HttpClient(
-    route,
-    conf.dashboard.address,
-    conf.dashboard.port,
-    Some("dashboard/index.html"),
-    self
-  )
+  var httpClient: Option[HttpClient] = None
 
   def getPerf: Future[Perf] =
     runHey flatMap (timings =>
@@ -85,7 +55,7 @@ class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
     log.info(s"Querying $url")
     Process(runCmd).!
     // Second run, for stats
-    val stream = csvCmd lineStream_! ProcessLogger(line => ())
+    val stream = csvCmd lineStream_! ProcessLogger(_ => ())
     val values = stream.flatMap { (line) => line match {
         case CsvPattern(responseTime, dnsLookup, dns, requestWrite, responseDelay, responseRead) =>
           Some(responseTime.toDouble * 1000)
@@ -103,9 +73,42 @@ class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
   }
 
   override def receive: Receive = {
-    case Connected(binding) =>
+    case HttpStart =>
+      httpClient = Some(new HttpClient(
+        conf.dashboard.address,
+        conf.dashboard.port,
+        Some("dashboard/index.html"),
+        self
+      ))
+
+    case HttpRoute =>
+      sender() ! path("mqtt") {
+        get {
+          onSuccess(ask(cassandraActor, RecentAll).mapTo[Iterable[Entry]]) { entries =>
+            val json = serializer.toJson(entries)
+            complete(HttpEntity(ContentTypes.`application/json`, json))
+          }
+        }
+      } ~ path("history") {
+        get {
+          onSuccess(ask(cassandraActor, HistoryAll).mapTo[Iterable[Entry]]) { entries =>
+            val json = serializer.toJson(entries)
+            complete(HttpEntity(ContentTypes.`application/json`, json))
+          }
+        }
+      } ~ path("perf") {
+        get {
+          onSuccess(getPerf) { perf =>
+            val json = serializer.toJson(perf)
+            complete(HttpEntity(ContentTypes.`application/json`, json))
+          }
+        }
+      }
+
+    case HttpConnected(binding) =>
       httpBinding = Some(binding)
-    case ConnectionFailure(ex) =>
+
+    case HttpConnectionFailure(ex) =>
       log.error(s"Failed to establish HTTP connection $ex")
   }
 }
