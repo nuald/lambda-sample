@@ -109,18 +109,18 @@ object Main extends App {
 
       getCassandraCluster(scoptConfig.cassandraHost) match {
         case Some(cluster) =>
-          val cassandraActor = system.actorOf(CassandraActor.props(cluster), "cassandra-client")
+          val cassandraClient = new CassandraClient(cluster)
 
           getRedisClient(scoptConfig.redisHost) foreach { redisClient =>
             val analyzerOpt = if (scoptConfig.noLocalAnalyzer) None else
-              Some(system.actorOf(Analyzer.props(cassandraActor, redisClient), "analyzer"))
+              Some(system.actorOf(Analyzer.props(cassandraClient, redisClient), "analyzer"))
 
             if (scoptConfig.isServer) {
               val endpoint = system.actorOf(Endpoint.props(analyzerOpt), "endpoint")
-              system.actorOf(Trainer.props(cassandraActor, redisClient), "trainer")
+              system.actorOf(Trainer.props(cassandraClient, redisClient), "trainer")
 
               system.actorOf(HistoryWriter.props(cluster, redisClient, analyzerOpt), "history-writer")
-              val dashboard = system.actorOf(Dashboard.props(cassandraActor, endpoint), "dashboard")
+              val dashboard = system.actorOf(Dashboard.props(cassandraClient, endpoint), "dashboard")
 
               endpoint ! HttpStart
               dashboard ! HttpStart
@@ -139,6 +139,7 @@ object Main extends App {
           scala.sys.addShutdownHook {
             system.terminate()
             Await.result(system.whenTerminated, 5.seconds)
+            cassandraClient.close()
             cluster.close()
           }
         case None => system.terminate()

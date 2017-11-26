@@ -8,7 +8,6 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import analyzer.Endpoint.Stats
-import lib.CassandraActor.{Entry, HistoryAll, RecentAll}
 import lib._
 
 import scala.concurrent.duration._
@@ -16,14 +15,14 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process._
 
 object Dashboard {
-  def props(cassandraActor: ActorRef, endpoint: ActorRef)
+  def props(cassandraClient: CassandraClient, endpoint: ActorRef)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Dashboard], cassandraActor, endpoint, materializer)
+    Props(classOf[Dashboard], cassandraClient, endpoint, materializer)
 
   final case class Perf(timings: List[Double], actorStats: Map[String, Double])
 }
 
-class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
+class Dashboard(cassandraClient: CassandraClient, endpoint: ActorRef)
                (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Dashboard._
@@ -84,17 +83,15 @@ class Dashboard(cassandraActor: ActorRef, endpoint: ActorRef)
     case HttpRoute =>
       sender() ! path("mqtt") {
         get {
-          onSuccess(ask(cassandraActor, RecentAll).mapTo[Iterable[Entry]]) { entries =>
-            val json = serializer.toJson(entries)
-            complete(HttpEntity(ContentTypes.`application/json`, json))
-          }
+          val entries = cassandraClient.recentAll()
+          val json = serializer.toJson(entries)
+          complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       } ~ path("history") {
         get {
-          onSuccess(ask(cassandraActor, HistoryAll).mapTo[Iterable[Entry]]) { entries =>
-            val json = serializer.toJson(entries)
-            complete(HttpEntity(ContentTypes.`application/json`, json))
-          }
+          val entries = cassandraClient.historyAll()
+          val json = serializer.toJson(entries)
+          complete(HttpEntity(ContentTypes.`application/json`, json))
         }
       } ~ path("perf") {
         get {

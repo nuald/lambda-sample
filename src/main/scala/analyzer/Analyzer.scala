@@ -1,14 +1,13 @@
 package analyzer
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, RootActorPath}
+import akka.actor.{Actor, ActorLogging, ActorSystem, Props, RootActorPath}
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.event.LoggingAdapter
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import lib.CassandraActor.{Entry, Recent}
-import lib.{BinarySerializer, Config}
+import lib.{BinarySerializer, CassandraClient, Config, Entry}
 import redis.RedisClient
 import smile.classification.RandomForest
 
@@ -31,9 +30,9 @@ final case class SensorMeta(
 final case class AllMeta(entries: List[SensorMeta])
 
 object Analyzer {
-  def props(cassandraActor: ActorRef, redisClient: RedisClient)
+  def props(cassandraClient: CassandraClient, redisClient: RedisClient)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Analyzer], cassandraActor, redisClient, materializer)
+    Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
 
   def getAnomalyFast(value: Double, values: Iterable[Double]): Double = {
     val size = values.size
@@ -63,7 +62,7 @@ object Analyzer {
   }
 }
 
-class Analyzer(cassandraActor: ActorRef, redisClient: RedisClient)
+class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
@@ -118,9 +117,8 @@ class Analyzer(cassandraActor: ActorRef, redisClient: RedisClient)
       val futures: Seq[Future[SensorMeta]] =
         for (sensor <- conf.mqtt.sensors.asScala)
           yield for {
-            entries <- ask(cassandraActor, Recent(sensor)).mapTo[Iterable[Entry]]
             rf <- fetchModel(sensor)
-          } yield analyze(sensor, entries, rf)
+          } yield analyze(sensor, cassandraClient.recent(sensor), rf)
 
       Future.sequence(futures) map {x =>
         val meta = AllMeta(x.toList)

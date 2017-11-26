@@ -1,29 +1,27 @@
 package analyzer
 
 import akka.actor._
-import akka.pattern.ask
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import lib.CassandraActor.{Entry, Full}
 import lib._
 import redis.RedisClient
 import smile.classification.{RandomForest, randomForest}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object Trainer {
-  def props(cassandraActor: ActorRef, redisClient: RedisClient)
+  def props(cassandraClient: CassandraClient, redisClient: RedisClient)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Trainer], cassandraActor, redisClient, materializer)
+    Props(classOf[Trainer], cassandraClient, redisClient, materializer)
 
   private final case object Tick
 }
 
-class Trainer(cassandraActor: ActorRef, redisClient: RedisClient)
+class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Trainer._
@@ -51,10 +49,8 @@ class Trainer(cassandraActor: ActorRef, redisClient: RedisClient)
       val serializer = new BinarySerializer()
       val futures =
         for (sensor <- conf.mqtt.sensors.asScala)
-          yield for {
-            entries <- ask(cassandraActor, Full(sensor)).mapTo[Iterable[Entry]]
-          } yield {
-            createFittedModel(entries) match {
+          yield {
+            createFittedModel(cassandraClient.full(sensor)) match {
               case Success(rf) =>
                 val bytes = serializer.toBinary(rf)
                 redisClient.hset(conf.fullAnalyzer.key, sensor, bytes)
@@ -63,7 +59,7 @@ class Trainer(cassandraActor: ActorRef, redisClient: RedisClient)
             }
           }
 
-      Future.sequence(futures) foreach { _ =>
+      futures foreach { _ =>
         system.scheduler.scheduleOnce(conf.fullAnalyzer.period.millis) {
           self ! Tick
         }
