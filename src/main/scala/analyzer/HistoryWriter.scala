@@ -92,7 +92,7 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
           BinarySerializer.SensorMetaManifest
         ).asInstanceOf[SensorMeta]
 
-        val notUpdatedYet = lastTimestamp(sensor) == meta.ts
+        val notUpdatedYet = lastTimestamp.contains(sensor) && lastTimestamp(sensor) == meta.ts
         val statement = QueryBuilder.update(conf.historyWriter.table)
           .`with`(QueryBuilder.set("fast_anomaly", meta.fastAnomaly))
           .and(QueryBuilder.set("full_anomaly", meta.fullAnomaly))
