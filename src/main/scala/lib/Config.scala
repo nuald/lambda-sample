@@ -3,6 +3,7 @@ package lib
 import com.typesafe.config.{ConfigBeanFactory, ConfigFactory}
 
 import scala.beans.BeanProperty
+import scala.collection.JavaConverters._
 
 class MqttConfig {
   @BeanProperty var broker = ""
@@ -10,6 +11,8 @@ class MqttConfig {
   @BeanProperty var bound = 100
   @BeanProperty var timeout = 200
   @BeanProperty var sensors: java.util.List[String] = new java.util.ArrayList[String]()
+
+  lazy val sensorsList: List[String] = sensors.asScala.toList
 }
 
 class CassandraConfig {

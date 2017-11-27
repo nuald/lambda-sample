@@ -13,7 +13,6 @@ import smile.classification.RandomForest
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.collection.JavaConverters._
 
 case object Analyze
 case object StressAnalyze
@@ -66,56 +65,22 @@ class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
+  private[this] val akkaCluster = Cluster(context.system)
+  private[this] val conf = Config.get
+  private[this] var lastMeta: Option[AllMeta] = None
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
-
-  val cluster = Cluster(context.system)
-
-  private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.fastAnalyzer.timeout.millis)
 
-  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
-  override def postStop(): Unit = cluster.unsubscribe(self)
-
-  def analyze(sensor: String, entries: Iterable[Entry], rfOpt: Option[RandomForest]): SensorMeta = {
-    val values = entries.map(_.value)
-    val value = values.head
-    val fastAnomaly = Analyzer.getAnomalyFast(value, values)
-    val fullAnomalyOpt = rfOpt map { rf =>
-      Analyzer.getAnomalyFull(value, rf)
-    }
-    val avgAnomaly = fullAnomalyOpt match {
-      case Some(fullAnomaly) => (35.0 * fastAnomaly + 65.0 * fullAnomaly) / 100.0
-      case None => fastAnomaly
-    }
-    SensorMeta(
-      sensor,
-      new java.util.Date(System.currentTimeMillis),
-      fastAnomaly,
-      fullAnomalyOpt.getOrElse(-1),
-      avgAnomaly
-    )
-  }
-
-  def fetchModel(sensor: String): Future[Option[RandomForest]] = {
-    val serializer = new BinarySerializer()
-    for {
-      bytesOpt <- redisClient.hget(conf.fullAnalyzer.key, sensor)
-    } yield bytesOpt map { bytes =>
-      serializer.fromBinary(
-        bytes.toArray,
-        BinarySerializer.RandomForestManifest
-      ).asInstanceOf[RandomForest]
-    }
-  }
-
-  var lastMeta: Option[AllMeta] = None
+  override def preStart(): Unit = akkaCluster.subscribe(self, classOf[MemberUp])
+  override def postStop(): Unit = akkaCluster.unsubscribe(self)
 
   override def receive: Receive = {
     case Analyze =>
       val futures: Seq[Future[SensorMeta]] =
-        for (sensor <- conf.mqtt.sensors.asScala)
+        for (sensor <- conf.mqtt.sensorsList)
           yield for {
             rf <- fetchModel(sensor)
           } yield analyze(sensor, cassandraClient.recent(sensor), rf)
@@ -137,7 +102,39 @@ class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
     case MemberUp(m) => register(m)
   }
 
-  def register(member: Member): Unit = {
+  private[this] def analyze(sensor: String, entries: Iterable[Entry], rfOpt: Option[RandomForest]): SensorMeta = {
+    val values = entries.map(_.value)
+    val value = values.head
+    val fastAnomaly = Analyzer.getAnomalyFast(value, values)
+    val fullAnomalyOpt = rfOpt map { rf =>
+      Analyzer.getAnomalyFull(value, rf)
+    }
+    val avgAnomaly = fullAnomalyOpt match {
+      case Some(fullAnomaly) => (35.0 * fastAnomaly + 65.0 * fullAnomaly) / 100.0
+      case None => fastAnomaly
+    }
+    SensorMeta(
+      sensor,
+      new java.util.Date(System.currentTimeMillis),
+      fastAnomaly,
+      fullAnomalyOpt.getOrElse(-1),
+      avgAnomaly
+    )
+  }
+
+  private[this] def fetchModel(sensor: String): Future[Option[RandomForest]] = {
+    val serializer = new BinarySerializer()
+    for {
+      bytesOpt <- redisClient.hget(conf.fullAnalyzer.key, sensor)
+    } yield bytesOpt map { bytes =>
+      serializer.fromBinary(
+        bytes.toArray,
+        BinarySerializer.RandomForestManifest
+      ).asInstanceOf[RandomForest]
+    }
+  }
+
+  private[this] def register(member: Member): Unit = {
     if (member.hasRole("frontend")) {
       context.actorSelection(RootActorPath(member.address) / "user" / "endpoint") !
         Registration

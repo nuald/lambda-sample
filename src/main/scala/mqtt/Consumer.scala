@@ -24,12 +24,12 @@ class Consumer(mqttClient: MqttClient, cluster: Cluster)
   extends Actor with ActorLogging {
   import Consumer._
 
+  private[this] val conf = Config.get
+  private[this] val session = cluster.connect(conf.cassandra.keyspace)
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
-
-  private val conf = Config.get
-  private val session = cluster.connect(conf.cassandra.keyspace)
 
   mqttClient.subscribe(conf.mqtt.topic)
 

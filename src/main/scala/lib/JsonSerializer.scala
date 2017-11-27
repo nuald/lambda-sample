@@ -5,7 +5,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 
 class JsonSerializer {
-  val mapper = new ObjectMapper with ScalaObjectMapper
+  private[this] val mapper = new ObjectMapper with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
   def toJson(obj: AnyRef): String = {

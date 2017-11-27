@@ -32,18 +32,16 @@ class Producer(mqttClient: MqttClient)
   extends Actor with ActorLogging {
   import Producer._
 
+  private[this] val conf = Config.get
+  private[this] val msgTopic = mqttClient.getTopic(conf.mqtt.topic)
+  private[this] val sensors = conf.mqtt.sensorsList
+  private[this] var state = sensors.map(k => (k, "normal")).toMap
+  private[this] var httpBinding: Option[ServerBinding] = None
+  private[this] var httpClient: Option[HttpClient] = None
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
-
-  private val conf = Config.get
-  private val msgTopic = mqttClient.getTopic(conf.mqtt.topic)
-
-  private val sensors = conf.mqtt.sensors.asScala
-  private var state = sensors.map(k => (k, "normal")).toMap
-
-  var httpBinding: Option[ServerBinding] = None
-  var httpClient: Option[HttpClient] = None
 
   override def postStop(): Unit = {
     httpBinding match {

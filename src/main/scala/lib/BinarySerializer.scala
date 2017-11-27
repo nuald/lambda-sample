@@ -15,43 +15,30 @@ import smile.classification.RandomForest
 import scala.util.Try
 
 object BinarySerializer {
-  val AnalyzeManifest: String = Analyze.getClass.getName
-  val StressAnalyzeManifest: String = StressAnalyze.getClass.getName
-  val RegistrationManifest: String = Registration.getClass.getName
-  val AllMetaManifest: String = AllMeta.getClass.getName
+  private val AnalyzeManifest: String = Analyze.getClass.getName
+  private val StressAnalyzeManifest: String = StressAnalyze.getClass.getName
+  private val RegistrationManifest: String = Registration.getClass.getName
+  private val AllMetaManifest: String = AllMeta.getClass.getName
+
   val RandomForestManifest: String = classOf[RandomForest].getName
   val SensorMetaManifest: String = SensorMeta.getClass.getName
   val MqttEntryManifest: String = MqttEntry.getClass.getName
 
   // Jackson can't serialize Java Serializable in cases
   // like an absent default constructor, therefore need to track it
-  val JavaManifests = Set(RandomForestManifest)
+  private val JavaManifests = Set(RandomForestManifest)
 }
 
 class BinarySerializer extends SerializerWithStringManifest {
   import BinarySerializer._
   import lib.Common.using
 
-  implicit val logger: LoggingAdapter = akka.event.NoLogging
-  val mapper = new ObjectMapper(new SmileFactory()) with ScalaObjectMapper
+  private[this] val mapper = new ObjectMapper(new SmileFactory()) with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
 
+  implicit val logger: LoggingAdapter = akka.event.NoLogging
+
   override def identifier = 1023
-
-  def javaSerialize(obj: AnyRef): Try[Array[Byte]] =
-    using(new ByteArrayOutputStream())(_.close) { ostream =>
-      using(new ObjectOutputStream(ostream))(_.close) { outputStream =>
-        outputStream.writeObject(obj)
-      }
-      ostream.toByteArray
-    }
-
-  def javaDeserialize(bytes: Array[Byte]): Try[AnyRef] = {
-    using(new ObjectInputStream(
-      new ByteArrayInputStream(bytes)))(_.close) { inputStream =>
-      inputStream.readObject()
-    }
-  }
 
   override def toBinary(obj: AnyRef): Array[Byte] = {
     if (JavaManifests.contains(manifest(obj))) {
@@ -85,6 +72,21 @@ class BinarySerializer extends SerializerWithStringManifest {
       case _: RandomForest => RandomForestManifest
       case _: SensorMeta => SensorMetaManifest
       case _: MqttEntry => MqttEntryManifest
+    }
+  }
+
+  private[this] def javaSerialize(obj: AnyRef): Try[Array[Byte]] =
+    using(new ByteArrayOutputStream())(_.close) { ostream =>
+      using(new ObjectOutputStream(ostream))(_.close) { outputStream =>
+        outputStream.writeObject(obj)
+      }
+      ostream.toByteArray
+    }
+
+  private[this] def javaDeserialize(bytes: Array[Byte]): Try[AnyRef] = {
+    using(new ObjectInputStream(
+      new ByteArrayInputStream(bytes)))(_.close) { inputStream =>
+      inputStream.readObject()
     }
   }
 }

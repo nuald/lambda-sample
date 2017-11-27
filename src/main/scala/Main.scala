@@ -18,7 +18,7 @@ import scala.io.Source
 import scala.util.{Failure, Success}
 
 object Main extends App {
-  val conf = Config.get
+  private[this] val conf = Config.get
 
   case class ScoptConfig(
     cassandraHost: String = conf.cassandra.address,
@@ -27,7 +27,7 @@ object Main extends App {
     noLocalAnalyzer: Boolean = false,
     redisHost: String = conf.redis.address)
 
-  val parser = new scopt.OptionParser[ScoptConfig]("""sbt "run [options]" """) {
+  private[this] val parser = new scopt.OptionParser[ScoptConfig]("""sbt "run [options]" """) {
     opt[String]('c', "cassandra").optional().valueName("<Cassandra host>").
       action((x, c) => c.copy(cassandraHost = x)).
       text(s"Cassandra host (${ conf.cassandra.address } by default)")
@@ -47,7 +47,7 @@ object Main extends App {
       .action((_, c) => c.copy(noLocalAnalyzer = true)).text("Don't use the local analyzer")
   }
 
-  def getCassandraCluster(contactPoint: String)
+  private[this] def getCassandraCluster(contactPoint: String)
                          (implicit logger: LoggingAdapter): Option[Cluster] = {
     val cluster = Cluster.builder()
       .addContactPoint(contactPoint)
@@ -63,7 +63,7 @@ object Main extends App {
     }
   }
 
-  def getConnectedMqtt(implicit logger: LoggingAdapter): Option[MqttClient] = {
+  private[this] def getConnectedMqtt(implicit logger: LoggingAdapter): Option[MqttClient] = {
     val mqttClient = new MqttClient(conf.mqtt.broker,
       MqttClient.generateClientId, new MemoryPersistence)
     try {

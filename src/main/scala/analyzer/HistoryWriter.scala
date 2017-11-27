@@ -1,5 +1,7 @@
 package analyzer
 
+import java.util.Date
+
 import akka.actor._
 import akka.pattern.ask
 import akka.event.LoggingAdapter
@@ -10,9 +12,9 @@ import com.datastax.driver.core.querybuilder.QueryBuilder
 import lib._
 import redis.RedisClient
 
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
 object HistoryWriter {
@@ -28,33 +30,23 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
   extends Actor with ActorLogging {
   import HistoryWriter._
 
+  private[this] val conf = Config.get
+  private[this] val session = cluster.connect(conf.cassandra.keyspace)
+  private[this] var analyzers = analyzerOpt.toIndexedSeq
+  private[this] var jobCounter = 0
+  private[this] val lastTimestamp = mutable.Map[String, Date]()
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
-
-  private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.historyWriter.timeout.millis)
 
-  private val session = cluster.connect(conf.cassandra.keyspace)
-
-  private val lastTimestamp = collection.mutable.Map(
-    conf.mqtt.sensors.asScala.map(a => (a, new java.util.Date())): _*
-  )
-
-  private var analyzers = analyzerOpt match {
-    case Some(ref) => IndexedSeq(ref)
-    case None => IndexedSeq()
-  }
-  var jobCounter = 0
-
-  override def postStop(): Unit = {
-    session.close()
-  }
+  override def postStop(): Unit = session.close()
 
   override def receive: Receive = {
     case Tick =>
       val doNeedUpdate =
-        for (sensor <- conf.mqtt.sensors.asScala)
+        for (sensor <- conf.mqtt.sensorsList)
           yield needUpdate(sensor)
 
       Future.sequence(doNeedUpdate).onComplete {
@@ -75,7 +67,7 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
       analyzers = analyzers.filterNot(_ == a)
   }
 
-  def forceAnalyze(): Unit = {
+  private[this] def forceAnalyze(): Unit = {
     if (analyzers.nonEmpty) {
       jobCounter += 1
       val analyzer = analyzers(jobCounter % analyzers.size)
@@ -89,7 +81,7 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
     }
   }
 
-  def needUpdate(sensor: String): Future[Boolean] = {
+  private[this] def needUpdate(sensor: String): Future[Boolean] = {
     val serializer = new BinarySerializer()
     for {
       bytesOpt <- redisClient.hget(conf.fastAnalyzer.key, sensor)

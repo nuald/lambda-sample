@@ -27,42 +27,15 @@ class Dashboard(cassandraClient: CassandraClient, endpoint: ActorRef)
   extends Actor with ActorLogging {
   import Dashboard._
 
+  private[this] val conf = Config.get
+  private[this] val serializer = new JsonSerializer()
+  private[this] var httpBinding: Option[ServerBinding] = None
+  private[this] var httpClient: Option[HttpClient] = None
+  private[this] val CsvPattern = raw"""([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+)""".r
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
-
-  private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.dashboard.timeout.millis)
-
-  val serializer = new JsonSerializer()
-
-  var httpBinding: Option[ServerBinding] = None
-  var httpClient: Option[HttpClient] = None
-
-  def getPerf: Future[Perf] =
-    runHey flatMap (timings =>
-      ask(endpoint, Stats).mapTo[Map[String, Double]] map (Perf(timings, _))
-    )
-
-  private val CsvPattern = raw"""([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+),([\d\.]+)""".r
-
-  def runHey: Future[List[Double]] = Future {
-    val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/stress"
-    val cmd = "hey -n 500 -c 10 -t 10"
-    val csvCmd = s"$cmd -o csv $url"
-    // First run, for UI
-    val runCmd = s"$cmd $url"
-    log.info(s"Querying $url")
-    Process(runCmd).!
-    // Second run, for stats
-    val stream = csvCmd lineStream_! ProcessLogger(_ => ())
-    val values = stream.flatMap { (line) => line match {
-        case CsvPattern(responseTime, dnsLookup, dns, requestWrite, responseDelay, responseRead) =>
-          Some(responseTime.toDouble * 1000)
-        case _ => None
-      }
-    }
-    values.toList
-  }
 
   override def postStop(): Unit = {
     httpBinding match {
@@ -107,5 +80,29 @@ class Dashboard(cassandraClient: CassandraClient, endpoint: ActorRef)
 
     case HttpConnectionFailure(ex) =>
       log.error(s"Failed to establish HTTP connection $ex")
+  }
+
+  private[this] def getPerf: Future[Perf] =
+    runHey flatMap (timings =>
+      ask(endpoint, Stats).mapTo[Map[String, Double]] map (Perf(timings, _))
+      )
+
+  private[this] def runHey: Future[List[Double]] = Future {
+    val url = s"http://${ conf.endpoint.address }:${ conf.endpoint.port }/stress"
+    val cmd = "hey -n 500 -c 10 -t 10"
+    val csvCmd = s"$cmd -o csv $url"
+    // First run, for UI
+    val runCmd = s"$cmd $url"
+    log.info(s"Querying $url")
+    Process(runCmd).!
+    // Second run, for stats
+    val stream = csvCmd lineStream_! ProcessLogger(_ => ())
+    val values = stream.flatMap { (line) => line match {
+      case CsvPattern(responseTime, dnsLookup, dns, requestWrite, responseDelay, responseRead) =>
+        Some(responseTime.toDouble * 1000)
+      case _ => None
+    }
+    }
+    values.toList
   }
 }

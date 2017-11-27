@@ -26,38 +26,17 @@ class Endpoint(analyzerOpt: Option[ActorRef])
   extends Actor with ActorLogging {
   import Endpoint._
 
+  private[this] val conf = Config.get
+  private[this] val serializer = new JsonSerializer()
+  private[this] var analyzers = analyzerOpt.toIndexedSeq
+  private[this] val stats = mutable.Map[String, Int]()
+  private[this] var jobCounter = 0
+  private[this] var httpBinding: Option[ServerBinding] = None
+  private[this] var httpClient: Option[HttpClient] = None
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
-
-  private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.endpoint.timeout.millis)
-
-  val serializer = new JsonSerializer()
-
-  private var analyzers = analyzerOpt match {
-    case Some(ref) => IndexedSeq(ref)
-    case None => IndexedSeq()
-  }
-  private val stats = mutable.Map[String, Int]()
-  var jobCounter = 0
-
-  private def pickAnalyzer(): ActorRef = {
-    jobCounter += 1
-    val analyzer = analyzers(jobCounter % analyzers.size)
-    val name = analyzer.toString
-    val count = stats.getOrElse(name, 0)
-    stats(name) = count + 1
-    analyzer
-  }
-
-  def getStats: Map[String, Double] = {
-    val sum = stats.values.sum
-    val mapped = stats map {case (k, v) => (k, v.toDouble / sum)}
-    mapped.toMap
-  }
-
-  var httpBinding: Option[ServerBinding] = None
-  var httpClient: Option[HttpClient] = None
 
   override def postStop(): Unit = {
     httpBinding match {
@@ -115,5 +94,20 @@ class Endpoint(analyzerOpt: Option[ActorRef])
 
     case Terminated(a) =>
       analyzers = analyzers.filterNot(_ == a)
+  }
+
+  private[this] def pickAnalyzer(): ActorRef = {
+    jobCounter += 1
+    val analyzer = analyzers(jobCounter % analyzers.size)
+    val name = analyzer.toString
+    val count = stats.getOrElse(name, 0)
+    stats(name) = count + 1
+    analyzer
+  }
+
+  private[this] def getStats: Map[String, Double] = {
+    val sum = stats.values.sum
+    val mapped = stats map {case (k, v) => (k, v.toDouble / sum)}
+    mapped.toMap
   }
 }

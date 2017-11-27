@@ -10,7 +10,6 @@ import smile.classification.{RandomForest, randomForest}
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
-import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 object Trainer {
@@ -26,29 +25,18 @@ class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
   extends Actor with ActorLogging {
   import Trainer._
 
+  private[this] val conf = Config.get
+
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
-
-  private val conf = Config.get
   implicit val timeout: Timeout = Timeout(conf.fullAnalyzer.timeout.millis)
-
-  def createFittedModel(entries: Iterable[Entry]): Try[RandomForest] = {
-    // Features are multi-dimensional, labels are integers
-    val mapping = (x: Entry) => (Array(x.value), x.anomaly)
-
-    // Extract the features and the labels
-    val (features, labels) = entries.map(mapping).unzip
-
-    // Fit the model
-    Try(randomForest(features.toArray, labels.toArray))
-  }
 
   override def receive: Receive = {
     case Tick =>
       val serializer = new BinarySerializer()
       val futures =
-        for (sensor <- conf.mqtt.sensors.asScala)
+        for (sensor <- conf.mqtt.sensorsList)
           yield {
             createFittedModel(cassandraClient.full(sensor)) match {
               case Success(rf) =>
@@ -64,6 +52,17 @@ class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
           self ! Tick
         }
       }
+  }
+
+  private[this] def createFittedModel(entries: Iterable[Entry]): Try[RandomForest] = {
+    // Features are multi-dimensional, labels are integers
+    val mapping = (x: Entry) => (Array(x.value), x.anomaly)
+
+    // Extract the features and the labels
+    val (features, labels) = entries.map(mapping).unzip
+
+    // Fit the model
+    Try(randomForest(features.toArray, labels.toArray))
   }
 
   system.scheduler.scheduleOnce(conf.fullAnalyzer.period.millis) {
