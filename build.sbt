@@ -2,13 +2,13 @@ name := "Sandbox"
 
 version:= "0.1.0-SNAPSHOT"
 
-scalaVersion := "2.12.3"
+scalaVersion := "2.12.4"
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.1",
+  "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.2",
   "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.2",
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.2",
   "com.fasterxml.jackson.dataformat" % "jackson-dataformat-smile" % "2.9.2",

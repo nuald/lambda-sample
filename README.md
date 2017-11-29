@@ -134,10 +134,6 @@ Verify the entries data store using CQL:
 
     $ cqlsh -e "select * from sandbox.entry limit 10;"
 
-Dump the entries into the CSV file:
-
-    $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv';"
-
 An example REPL session (with `sbt console`) consists of 4 parts:
 
 1. Preparing the data set
@@ -147,12 +143,13 @@ An example REPL session (with `sbt console`) consists of 4 parts:
 
 #### Preparing the data set
 
+Dump the entries into the CSV file:
+
+    $ cqlsh -e "copy sandbox.entry(sensor,ts,value,anomaly) to 'list.csv';"
+
 Read the CSV file and extract the features and the labels for the particular sensor:
 
 ```scala
-// Fix the borked REPL
-jline.TerminalFactory.get.init
-
 // Declare the class to get better visibility on the data
 case class Row(sensor: String, ts: String, value: Double, anomaly: Int)
 
@@ -185,7 +182,7 @@ val values = features.flatten.take(200)
 
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
-samples.map(sample => analyzer.Analyzer.getAnomalyFast(sample, values))
+samples.map(sample => analyzer.Analyzer.withHeuristic(sample, values))
 
 ```
 
@@ -225,9 +222,6 @@ using(new ObjectOutputStream(new FileOutputStream("target/rf.bin")))(_.close) { 
 Load and use the model:
 
 ```scala
-// Fix the borked REPL
-jline.TerminalFactory.get.init
-
 // Set up the implicit for the using() function
 implicit val logger = akka.event.NoLogging
 

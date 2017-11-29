@@ -49,7 +49,7 @@ class AnalyzerSpec extends FlatSpec with Matchers {
 
     // Use the fast analyzer for the sample values
     val samples = Seq(10, 200, -100)
-    samples.map(sample => analyzer.Analyzer.getAnomalyFast(sample, values)) match {
+    samples.map(sample => analyzer.Analyzer.withHeuristic(sample, values)) match {
       case Seq(notAnomaly, anomaly, risky) =>
         notAnomaly should be (0)
         anomaly should be (1)
@@ -65,7 +65,7 @@ class AnalyzerSpec extends FlatSpec with Matchers {
 
     // Use the full analyzer for the sample values
     val samples = Seq(10, 200, -100)
-    samples.map(sample => analyzer.Analyzer.getAnomalyFull(sample, rf)) match {
+    samples.map(sample => analyzer.Analyzer.withTrainedModel(sample, rf)) match {
       case Seq(notAnomaly, anomaly, risky) =>
         notAnomaly should be (0.1 +- 0.1)
         anomaly should be (0.9 +- 0.1)

@@ -10,7 +10,6 @@ import org.clapper.scalasti.ST
 import org.eclipse.paho.client.mqttv3._
 import lib._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scala.io.Source

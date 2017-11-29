@@ -1,5 +1,7 @@
 package analyzer
 
+import java.util.Date
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props, RootActorPath}
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
@@ -33,26 +35,25 @@ object Analyzer {
            (implicit materializer: ActorMaterializer) =
     Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
 
-  def getAnomalyFast(value: Double, values: Iterable[Double]): Double = {
-    val size = values.size
-    val avg = values.sum / size
-    val stddev = math.sqrt(
-      values.map(x => math.pow(x - avg, 2)).sum / size
-    )
-    val recentDev = math.abs(value - avg)
-    val anomaly = (recentDev - stddev) / (2 * stddev)
-    if (anomaly < 0) {
-      0
-    } else if (anomaly > 1) {
-      1
-    } else {
-      anomaly
-    }
+  def withHeuristic(value: Double, history: Iterable[Double]): Double = {
+    val size = history.size
+    val avg = history.sum / size
+
+    def sqrDiff(x: Double) = (x - avg) * (x - avg)
+    val stdDev = math.sqrt((0.0 /: history)(_ + sqrDiff(_)) / size)
+
+    val valueDev = math.abs(value - avg)
+    val anomaly = (valueDev - stdDev) / (2 * stdDev)
+
+    // truncate the value to be in the range [0, 1]
+    anomaly.max(0).min(1)
   }
 
-  def getAnomalyFull(value: Double, rf: RandomForest): Double = {
+  def withTrainedModel(value: Double, rf: RandomForest): Double = {
     val probability = new Array[Double](2)
     val prediction = rf.predict(Array(value), probability)
+
+    // highest probability corresponds to the predicted class
     if (prediction == 1) {
       probability.max
     } else {
@@ -102,24 +103,19 @@ class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
     case MemberUp(m) => register(m)
   }
 
-  private[this] def analyze(sensor: String, entries: Iterable[Entry], rfOpt: Option[RandomForest]): SensorMeta = {
+  private def analyze(name: String, entries: Iterable[Entry], rf: Option[RandomForest]) = {
     val values = entries.map(_.value)
     val value = values.head
-    val fastAnomaly = Analyzer.getAnomalyFast(value, values)
-    val fullAnomalyOpt = rfOpt map { rf =>
-      Analyzer.getAnomalyFull(value, rf)
+
+    val approxAnomaly = Analyzer.withHeuristic(value, values)
+    val mlAnomalyOpt = rf.map(Analyzer.withTrainedModel(value, _))
+    val avgAnomaly = mlAnomalyOpt match {
+      case Some(mlAnomaly) => (35.0 * approxAnomaly + 65.0 * mlAnomaly) / 100.0
+      case None => approxAnomaly
     }
-    val avgAnomaly = fullAnomalyOpt match {
-      case Some(fullAnomaly) => (35.0 * fastAnomaly + 65.0 * fullAnomaly) / 100.0
-      case None => fastAnomaly
-    }
-    SensorMeta(
-      sensor,
-      new java.util.Date(System.currentTimeMillis),
-      fastAnomaly,
-      fullAnomalyOpt.getOrElse(-1),
-      avgAnomaly
-    )
+
+    val ts = new Date(System.currentTimeMillis)
+    SensorMeta(name, ts, approxAnomaly, mlAnomalyOpt.getOrElse(-1), avgAnomaly)
   }
 
   private[this] def fetchModel(sensor: String): Future[Option[RandomForest]] = {
