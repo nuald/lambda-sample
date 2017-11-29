@@ -35,6 +35,15 @@ object Analyzer {
            (implicit materializer: ActorMaterializer) =
     Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
 
+  // ANCHOR: withHeuristic begin
+
+  /**
+    * Calculates the probability of the anomaly with the heuristics.
+    *
+    * @param value The analyzed value
+    * @param history The previous values
+    * @return The probability of the anomaly
+    */
   def withHeuristic(value: Double, history: Iterable[Double]): Double = {
     val size = history.size
     val avg = history.sum / size
@@ -45,10 +54,21 @@ object Analyzer {
     val valueDev = math.abs(value - avg)
     val anomaly = (valueDev - stdDev) / (2 * stdDev)
 
-    // truncate the value to be in the range [0, 1]
+    // truncate the value to be in the [0, 1] interval
     anomaly.max(0).min(1)
   }
 
+  // ANCHOR: withHeuristic end
+
+  // ANCHOR: withTrainedModel begin
+
+  /**
+    * Calculates the probability of the anomaly with the trained model.
+    *
+    * @param value The analyzed value
+    * @param rf The trained model (Random Forest classification)
+    * @return The probability of the anomaly
+    */
   def withTrainedModel(value: Double, rf: RandomForest): Double = {
     val probability = new Array[Double](2)
     val prediction = rf.predict(Array(value), probability)
@@ -60,6 +80,8 @@ object Analyzer {
       probability.min
     }
   }
+
+  // ANCHOR: withTrainedModel end
 }
 
 class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
@@ -103,6 +125,16 @@ class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
     case MemberUp(m) => register(m)
   }
 
+  // ANCHOR: analyze begin
+
+  /**
+    * Calculates the probability of the anomaly using both heuristics and trained model
+    *
+    * @param name Name of the IoT sensor
+    * @param entries Sensor history entries
+    * @param rf Optionally trained model
+    * @return Meta information with the results of the analysis
+    */
   private def analyze(name: String, entries: Iterable[Entry], rf: Option[RandomForest]) = {
     val values = entries.map(_.value)
     val value = values.head
@@ -117,6 +149,8 @@ class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
     val ts = new Date(System.currentTimeMillis)
     SensorMeta(name, ts, approxAnomaly, mlAnomalyOpt.getOrElse(-1), avgAnomaly)
   }
+
+  // ANCHOR: analyze end
 
   private[this] def fetchModel(sensor: String): Future[Option[RandomForest]] = {
     val serializer = new BinarySerializer()
