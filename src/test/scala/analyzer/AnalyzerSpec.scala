@@ -7,39 +7,13 @@ import scala.language.postfixOps
 import lib.Common.using
 import java.io._
 
-import lib.BinarySerializer
+import lib.{BinarySerializer, EntriesFixture}
 import smile.classification.{RandomForest, randomForest}
 
 class AnalyzerSpec extends FlatSpec with Matchers {
   implicit val logger: LoggingAdapter = akka.event.NoLogging
 
-  class Fixture {
-    // Declare the class to get better visibility on the data
-    case class Row(sensor: String, ts: String, value: Double, anomaly: Int)
-
-    private def getData = {
-      // Read the values from the CSV file
-      val iter = scala.io.Source.fromResource("entries.csv").getLines
-
-      // Get the data
-      val l = iter.map(_.split(",") match {
-        case Array(a, b, c, d) => Row(a, b, c.toDouble, d.toInt)
-      }).toList
-
-      // Get the sensor name for further analysis
-      val name = l.head.sensor
-
-      // Features are multi-dimensional, labels are integers
-      val mapping = (x: Row) => (Array(x.value), x.anomaly)
-
-      // Extract the features and the labels for the given sensor
-      l.filter(_.sensor == name).map(mapping).unzip
-    }
-
-    val (features, labels) = getData
-  }
-
-  def fixture = new Fixture
+  private[this] def fixture = EntriesFixture()
 
   "The analysis process" should "run the fast analysis correctly" in {
     val f = fixture

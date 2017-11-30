@@ -15,10 +15,10 @@ import smile.classification.RandomForest
 import scala.util.Try
 
 object BinarySerializer {
-  private val AnalyzeManifest: String = Analyze.getClass.getName
-  private val StressAnalyzeManifest: String = StressAnalyze.getClass.getName
-  private val RegistrationManifest: String = Registration.getClass.getName
-  private val AllMetaManifest: String = AllMeta.getClass.getName
+  val AnalyzeManifest: String = Analyze.getClass.getName
+  val StressAnalyzeManifest: String = StressAnalyze.getClass.getName
+  val RegistrationManifest: String = Registration.getClass.getName
+  val AllMetaManifest: String = AllMeta.getClass.getName
 
   val RandomForestManifest: String = classOf[RandomForest].getName
   val SensorMetaManifest: String = SensorMeta.getClass.getName
