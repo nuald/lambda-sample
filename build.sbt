@@ -6,6 +6,8 @@ scalaVersion := "2.12.4"
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
+resolvers += "MQTT Repository" at "https://repo.eclipse.org/content/repositories/paho-releases/"
+
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "com.datastax.cassandra" % "cassandra-driver-core" % "3.3.2",
@@ -24,5 +26,3 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.10" % "test",
   "org.scalatest" %% "scalatest" % "3.2.0-SNAP9" % "test"
 )
-
-resolvers += "MQTT Repository" at "https://repo.eclipse.org/content/repositories/paho-releases/"

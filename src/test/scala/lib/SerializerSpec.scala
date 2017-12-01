@@ -9,10 +9,9 @@ import mqtt.Producer.MqttEntry
 import org.scalactic.Equality
 import org.scalatest.{FlatSpec, Matchers}
 import smile.classification.randomForest
+import lib.EntriesFixture.Precision
 
 class SerializerSpec extends FlatSpec with Matchers {
-
-  val Precision = 0.0002
 
   implicit val randomForestEq: Equality[RandomForest] =
     (a: RandomForest, b: Any) => b match {

@@ -1,6 +1,8 @@
 package lib
 
 object EntriesFixture {
+  val Precision = 0.0002
+
   def apply(): EntriesFixture = new EntriesFixture()
 }
 

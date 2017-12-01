@@ -70,15 +70,10 @@ object Analyzer {
     * @return The probability of the anomaly
     */
   def withTrainedModel(value: Double, rf: RandomForest): Double = {
-    val probability = new Array[Double](2)
-    val prediction = rf.predict(Array(value), probability)
+    val probability = ML.RandomForest(rf).predict(Array(value))
 
-    // highest probability corresponds to the predicted class
-    if (prediction == 1) {
-      probability.max
-    } else {
-      probability.min
-    }
+    // anomaly class has the index 1
+    probability(1)
   }
 
   // ANCHOR: withTrainedModel end
