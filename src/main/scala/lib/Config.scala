@@ -3,7 +3,7 @@ package lib
 import com.typesafe.config.{ConfigBeanFactory, ConfigFactory}
 
 import scala.beans.BeanProperty
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class MqttConfig {
   @BeanProperty var broker = ""

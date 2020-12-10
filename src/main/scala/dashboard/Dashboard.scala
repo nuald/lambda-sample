@@ -5,7 +5,6 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import analyzer.Endpoint.Stats
 import lib._
@@ -15,15 +14,13 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process._
 
 object Dashboard {
-  def props(cassandraClient: CassandraClient, endpoint: ActorRef)
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[Dashboard], cassandraClient, endpoint, materializer)
+  def props(cassandraClient: CassandraClient, endpoint: ActorRef) =
+    Props(classOf[Dashboard], cassandraClient, endpoint)
 
   final case class Perf(timings: List[Double], actorStats: Map[String, Double])
 }
 
 class Dashboard(cassandraClient: CassandraClient, endpoint: ActorRef)
-               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Dashboard._
 
@@ -96,7 +93,7 @@ class Dashboard(cassandraClient: CassandraClient, endpoint: ActorRef)
     log.info(s"Querying $url")
     Process(runCmd).!
     // Second run, for stats
-    val stream = csvCmd lineStream_! ProcessLogger(_ => ())
+    val stream = csvCmd lazyLines_! ProcessLogger(_ => ())
     val values = stream.flatMap { (line) => line match {
       case CsvPattern(responseTime, dnsLookup, dns, requestWrite, responseDelay, responseRead) =>
         Some(responseTime.toDouble * 1000)

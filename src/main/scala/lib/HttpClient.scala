@@ -7,7 +7,6 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
 import akka.http.scaladsl.server.Directives.{path, _}
-import akka.stream.ActorMaterializer
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -29,7 +28,6 @@ class HttpClient(
   supervisor: ActorRef
 )(implicit
   system: ActorSystem,
-  materializer: ActorMaterializer,
   executionContext: ExecutionContext
 ) {
   implicit val timeout: Timeout = Timeout(1.seconds)
@@ -50,7 +48,7 @@ class HttpClient(
       }
     }
 
-    Http().bindAndHandle(cdnExtended, address, port).onComplete {
+    Http().newServerAt(address, port).bind(cdnExtended).onComplete {
       case Success(binding) => supervisor ! HttpConnected(binding)
       case Failure(ex) => supervisor ! HttpConnectionFailure(ex)
     }

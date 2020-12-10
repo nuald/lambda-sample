@@ -6,7 +6,7 @@ import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder._
 import com.datastax.oss.driver.api.querybuilder.relation._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 final case class Entry(sensor: String, ts: java.time.Instant, value: Double, anomaly: Int)
 

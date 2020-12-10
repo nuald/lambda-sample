@@ -5,7 +5,6 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
 import org.stringtemplate.v4._
 import org.eclipse.paho.client.mqttv3._
 import lib._
@@ -16,9 +15,8 @@ import scala.io.Source
 import scala.util.{Failure, Success}
 
 object Producer {
-  def props(mqttClient: MqttClient)
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[Producer], mqttClient, materializer)
+  def props(mqttClient: MqttClient) =
+    Props(classOf[Producer], mqttClient)
 
   final case class MqttEntry(sensor: String, value: Double, anomaly: Int)
   final case class SensorModel(name: String, isNormal: Boolean)
@@ -27,7 +25,6 @@ object Producer {
 }
 
 class Producer(mqttClient: MqttClient)
-              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Producer._
 
@@ -106,7 +103,9 @@ class Producer(mqttClient: MqttClient)
       log.error(s"Failed to establish HTTP connection $ex")
   }
 
-  system.scheduler.schedule(0.millis, conf.mqtt.timeout.millis) {
-    self ! Tick
-  }
+  system.scheduler.scheduleWithFixedDelay(
+    Duration.Zero,
+    conf.mqtt.timeout.millis,
+    self,
+    Tick)
 }

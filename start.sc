@@ -9,7 +9,7 @@ val EnvDir = "target/env"
 def isCassandraRunning: Boolean = {
   val lsofPattern = raw"""p(\d+)""".r
   val lsof = Seq("lsof", "-Fp", "-i", ":9042")
-  lsof.lineStream_!.map {
+  lsof.lazyLines_!.map {
     case lsofPattern(_) => true
     case _ => false
   }.exists(x => x)

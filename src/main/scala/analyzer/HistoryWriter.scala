@@ -3,7 +3,6 @@ package analyzer
 import akka.actor._
 import akka.pattern.ask
 import akka.event.LoggingAdapter
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder._
@@ -18,15 +17,13 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object HistoryWriter {
-  def props(session: CqlSession, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[HistoryWriter], session, redisClient, analyzerOpt, materializer)
+  def props(session: CqlSession, redisClient: RedisClient, analyzerOpt: Option[ActorRef]) =
+    Props(classOf[HistoryWriter], session, redisClient, analyzerOpt)
 
   private final case object Tick
 }
 
 class HistoryWriter(session: CqlSession, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
-                   (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import HistoryWriter._
 
@@ -107,7 +104,9 @@ class HistoryWriter(session: CqlSession, redisClient: RedisClient, analyzerOpt: 
     }
   }
 
-  system.scheduler.schedule(0.millis, conf.historyWriter.period.millis) {
-    self ! Tick
-  }
+  system.scheduler.scheduleWithFixedDelay(
+    Duration.Zero,
+    conf.historyWriter.period.millis,
+    self,
+    Tick)
 }

@@ -5,7 +5,6 @@ import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.event.LoggingAdapter
 import akka.pattern.pipe
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import lib.{BinarySerializer, CassandraClient, Config, Entry}
 import redis.RedisClient
@@ -31,9 +30,8 @@ final case class SensorMeta(
 final case class AllMeta(entries: List[SensorMeta])
 
 object Analyzer {
-  def props(cassandraClient: CassandraClient, redisClient: RedisClient)
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[Analyzer], cassandraClient, redisClient, materializer)
+  def props(cassandraClient: CassandraClient, redisClient: RedisClient) =
+    Props(classOf[Analyzer], cassandraClient, redisClient)
 
   // ANCHOR: withHeuristic begin
 
@@ -49,7 +47,7 @@ object Analyzer {
     val avg = history.sum / size
 
     def sqrDiff(x: Double) = (x - avg) * (x - avg)
-    val stdDev = math.sqrt((0.0 /: history)(_ + sqrDiff(_)) / size)
+    val stdDev = math.sqrt(history.foldLeft(0.0)(_ + sqrDiff(_)) / size)
 
     val valueDev = math.abs(value - avg)
     val anomaly = (valueDev - stdDev) / (2 * stdDev)
@@ -86,7 +84,6 @@ object Analyzer {
 }
 
 class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
-              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
 
   private[this] val akkaCluster = Cluster(context.system)

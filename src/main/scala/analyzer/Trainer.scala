@@ -2,7 +2,6 @@ package analyzer
 
 import akka.actor._
 import akka.event.LoggingAdapter
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import lib._
 import redis.RedisClient
@@ -13,18 +12,16 @@ import smile.data.formula._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object Trainer {
-  def props(cassandraClient: CassandraClient, redisClient: RedisClient)
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[Trainer], cassandraClient, redisClient, materializer)
+  def props(cassandraClient: CassandraClient, redisClient: RedisClient) =
+    Props(classOf[Trainer], cassandraClient, redisClient)
 
   private final case object Tick
 }
 
 class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
-             (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Trainer._
 

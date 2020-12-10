@@ -2,7 +2,6 @@ package mqtt
 
 import akka.actor._
 import akka.event.LoggingAdapter
-import akka.stream.ActorMaterializer
 import org.eclipse.paho.client.mqttv3._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder._
@@ -14,15 +13,13 @@ import mqtt.Producer.MqttEntry
 import scala.concurrent.ExecutionContext
 
 object Consumer {
-  def props(mqttClient: MqttClient, session: CqlSession)
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[Consumer], mqttClient, session, materializer)
+  def props(mqttClient: MqttClient, session: CqlSession) =
+    Props(classOf[Consumer], mqttClient, session)
 
   final case class Arrived(message: MqttMessage)
 }
 
 class Consumer(mqttClient: MqttClient, session: CqlSession)
-              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Consumer._
 

@@ -5,7 +5,6 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import lib._
 
@@ -14,15 +13,13 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 object Endpoint {
-  def props(analyzerOpt: Option[ActorRef])
-           (implicit materializer: ActorMaterializer) =
-    Props(classOf[Endpoint], analyzerOpt, materializer)
+  def props(analyzerOpt: Option[ActorRef]) =
+    Props(classOf[Endpoint], analyzerOpt)
 
   final case object Stats
 }
 
 class Endpoint(analyzerOpt: Option[ActorRef])
-              (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Endpoint._
 

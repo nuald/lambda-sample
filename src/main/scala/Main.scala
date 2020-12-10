@@ -1,6 +1,5 @@
 import akka.actor.ActorSystem
 import akka.event.{LogSource, Logging, LoggingAdapter}
-import akka.stream.ActorMaterializer
 import analyzer.{Analyzer, Endpoint, HistoryWriter, Trainer}
 import com.datastax.oss.driver.api.core.CqlSession
 import com.typesafe.config.ConfigFactory
@@ -88,7 +87,6 @@ object Main extends App {
       }
 
       implicit val system: ActorSystem = ActorSystem("cluster", akkaConfig)
-      implicit val materializer: ActorMaterializer = ActorMaterializer()
       implicit val executionContext: ExecutionContext = system.dispatcher
 
       // Setup logging
