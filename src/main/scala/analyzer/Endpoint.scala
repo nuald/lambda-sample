@@ -40,7 +40,7 @@ class Endpoint(analyzerOpt: Option[ActorRef])
 
   override def postStop(): Unit = {
     httpBinding match {
-      case Some(x) => x.unbind
+      case Some(x) => x.unbind()
       case None =>
     }
   }

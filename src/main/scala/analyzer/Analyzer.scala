@@ -1,7 +1,5 @@
 package analyzer
 
-import java.util.Date
-
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props, RootActorPath}
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
@@ -12,6 +10,8 @@ import akka.util.Timeout
 import lib.{BinarySerializer, CassandraClient, Config, Entry}
 import redis.RedisClient
 import smile.classification.RandomForest
+import smile.data.Tuple
+import smile.data.`type`._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -22,7 +22,7 @@ case object Registration
 
 final case class SensorMeta(
   name: String,
-  ts: java.util.Date,
+  ts: java.time.Instant,
   fastAnomaly: Double,
   fullAnomaly: Double,
   avgAnomaly: Double
@@ -70,10 +70,16 @@ object Analyzer {
     * @return The probability of the anomaly
     */
   def withTrainedModel(value: Double, rf: RandomForest): Double = {
-    val probability = ML.RandomForest(rf).predict(Array(value))
+    val posteriori = new Array[Double](2)
+    rf.predict(
+      Tuple.of(
+        Array(value),
+        DataTypes.struct(
+          new StructField("value", DataTypes.DoubleType))),
+      posteriori)
 
     // anomaly class has the index 1
-    probability(1)
+    posteriori(1)
   }
 
   // ANCHOR: withTrainedModel end
@@ -141,7 +147,7 @@ class Analyzer(cassandraClient: CassandraClient, redisClient: RedisClient)
       case None => approxAnomaly
     }
 
-    val ts = new Date(System.currentTimeMillis)
+    val ts = java.time.Instant.now()
     SensorMeta(name, ts, approxAnomaly, mlAnomalyOpt.getOrElse(-1), avgAnomaly)
   }
 

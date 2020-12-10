@@ -2,7 +2,7 @@ import akka.actor.ActorSystem
 import akka.event.{LogSource, Logging, LoggingAdapter}
 import akka.stream.ActorMaterializer
 import analyzer.{Analyzer, Endpoint, HistoryWriter, Trainer}
-import com.datastax.driver.core.Cluster
+import com.datastax.oss.driver.api.core.CqlSession
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.{Await, ExecutionContext}
@@ -13,6 +13,7 @@ import lib._
 import org.eclipse.paho.client.mqttv3.MqttClient
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import redis.RedisClient
+import java.net.InetSocketAddress
 
 import scala.io.Source
 import scala.util.{Failure, Success}
@@ -47,18 +48,19 @@ object Main extends App {
       .action((_, c) => c.copy(noLocalAnalyzer = true)).text("Don't use the local analyzer")
   }
 
-  private[this] def getCassandraCluster(contactPoint: String)
-                         (implicit logger: LoggingAdapter): Option[Cluster] = {
-    val cluster = Cluster.builder()
-      .addContactPoint(contactPoint)
+  private[this] def getCassandraSession(contactPoint: String)
+    (implicit logger: LoggingAdapter): Option[CqlSession] = {
+    val session = CqlSession.builder()
+      .addContactPoint(new InetSocketAddress(contactPoint, 9042))
+      .withKeyspace(conf.cassandra.keyspace)
       .build()
     try {
-      val clusterName = cluster.getMetadata.getClusterName
+      val clusterName = session.getMetadata.getClusterName
       logger.info(s"Cassandra cluster: $clusterName")
-      Some(cluster)
+      Some(session)
     } catch {
       case e: Throwable =>
-        logger.error(e, "Cassandra cluster is not available")
+        logger.error(e, "Cassandra session is not available")
         None
     }
   }
@@ -107,9 +109,9 @@ object Main extends App {
         }
       }
 
-      getCassandraCluster(scoptConfig.cassandraHost) match {
-        case Some(cluster) =>
-          val cassandraClient = new CassandraClient(cluster)
+      getCassandraSession(scoptConfig.cassandraHost) match {
+        case Some(session) =>
+          val cassandraClient = new CassandraClient(session)
 
           getRedisClient(scoptConfig.redisHost) foreach { redisClient =>
             val analyzerOpt = if (scoptConfig.noLocalAnalyzer) None else
@@ -119,7 +121,7 @@ object Main extends App {
               val endpoint = system.actorOf(Endpoint.props(analyzerOpt), "endpoint")
               system.actorOf(Trainer.props(cassandraClient, redisClient), "trainer")
 
-              system.actorOf(HistoryWriter.props(cluster, redisClient, analyzerOpt), "history-writer")
+              system.actorOf(HistoryWriter.props(session, redisClient, analyzerOpt), "history-writer")
               val dashboard = system.actorOf(Dashboard.props(cassandraClient, endpoint), "dashboard")
 
               endpoint ! HttpStart
@@ -130,7 +132,7 @@ object Main extends App {
           if (scoptConfig.isServer) {
             getConnectedMqtt foreach { mqttClient =>
               val producer = system.actorOf(Producer.props(mqttClient), "producer")
-              system.actorOf(Consumer.props(mqttClient, cluster), "consumer")
+              system.actorOf(Consumer.props(mqttClient, session), "consumer")
 
               producer ! HttpStart
             }
@@ -139,8 +141,7 @@ object Main extends App {
           scala.sys.addShutdownHook {
             system.terminate()
             Await.result(system.whenTerminated, 5.seconds)
-            cassandraClient.close()
-            cluster.close()
+            session.close()
           }
         case None => system.terminate()
       }

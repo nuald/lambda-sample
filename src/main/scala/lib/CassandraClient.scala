@@ -1,20 +1,17 @@
 package lib
 
 import analyzer.SensorMeta
-import com.datastax.driver.core.querybuilder.QueryBuilder
-import com.datastax.driver.core.{Cluster, ResultSet}
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder._
+import com.datastax.oss.driver.api.querybuilder.relation._
 
 import scala.collection.JavaConverters._
 
-final case class Entry(sensor: String, ts: java.util.Date, value: Double, anomaly: Int)
+final case class Entry(sensor: String, ts: java.time.Instant, value: Double, anomaly: Int)
 
-class CassandraClient(cluster: Cluster) {
+class CassandraClient(session: CqlSession) {
   private[this] val conf = Config.get
-  private[this] val session = cluster.connect(conf.cassandra.keyspace)
-
-  def close(): Unit = {
-    session.close()
-  }
 
   def recentAll(): Iterable[Entry] = {
     val entries =
@@ -39,10 +36,9 @@ class CassandraClient(cluster: Cluster) {
   }
 
   private[this] def values(sensor: String, table: String, limit: Int): ResultSet = {
-    val query = QueryBuilder.select().all()
-      .from(table)
-      .where(QueryBuilder.eq("sensor", sensor))
-      .limit(limit)
+    val query = selectFrom(table).all()
+      .where(Relation.column("sensor").isEqualTo(literal(sensor)))
+      .limit(limit).build()
     session.execute(query)
   }
 
@@ -50,7 +46,7 @@ class CassandraClient(cluster: Cluster) {
     for (row <- rs.asScala)
       yield Entry(
         row.getString("sensor"),
-        row.getTimestamp("ts"),
+        row.getInstant("ts"),
         row.getDouble("value"),
         row.getInt("anomaly")
       )
@@ -60,7 +56,7 @@ class CassandraClient(cluster: Cluster) {
     for (row <- rs.asScala)
       yield SensorMeta(
         row.getString("sensor"),
-        row.getTimestamp("ts"),
+        row.getInstant("ts"),
         row.getDouble("fast_anomaly"),
         row.getDouble("full_anomaly"),
         row.getDouble("avg_anomaly")

@@ -6,7 +6,7 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
-import org.clapper.scalasti.ST
+import org.stringtemplate.v4._
 import org.eclipse.paho.client.mqttv3._
 import lib._
 
@@ -44,7 +44,7 @@ class Producer(mqttClient: MqttClient)
 
   override def postStop(): Unit = {
     httpBinding match {
-      case Some(x) => x.unbind
+      case Some(x) => x.unbind()
       case None =>
     }
     mqttClient.disconnect()
@@ -93,12 +93,9 @@ class Producer(mqttClient: MqttClient)
           get {
             val src = Source.fromFile("resources/producer/index.html").mkString
             val model = sensors.map(name => SensorModel(name, state(name) == "normal"))
-            val template = ST(src, '$', '$').add("sensors", model)
-            template.render() match {
-              case Success(dst) =>
-                complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))
-              case Failure(ex) => complete(StatusCodes.InternalServerError, ex)
-            }
+            val template = new ST(src, '$', '$').add("sensors", model)
+            val dst = template.render()
+            complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))
           }
         }
 

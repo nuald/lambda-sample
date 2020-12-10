@@ -4,28 +4,29 @@ import akka.actor._
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import org.eclipse.paho.client.mqttv3._
-import com.datastax.driver.core.Cluster
-import com.datastax.driver.core.querybuilder.QueryBuilder
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder._
+import com.datastax.oss.driver.api.querybuilder.update._
+import com.datastax.oss.driver.api.querybuilder.relation._
 import lib._
 import mqtt.Producer.MqttEntry
 
 import scala.concurrent.ExecutionContext
 
 object Consumer {
-  def props(mqttClient: MqttClient, cluster: Cluster)
+  def props(mqttClient: MqttClient, session: CqlSession)
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[Consumer], mqttClient, cluster, materializer)
+    Props(classOf[Consumer], mqttClient, session, materializer)
 
   final case class Arrived(message: MqttMessage)
 }
 
-class Consumer(mqttClient: MqttClient, cluster: Cluster)
+class Consumer(mqttClient: MqttClient, session: CqlSession)
               (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import Consumer._
 
   private[this] val conf = Config.get
-  private[this] val session = cluster.connect(conf.cassandra.keyspace)
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -48,7 +49,6 @@ class Consumer(mqttClient: MqttClient, cluster: Cluster)
 
   override def postStop(): Unit = {
     mqttClient.disconnect()
-    session.close()
   }
 
   override def receive: Receive = {
@@ -59,11 +59,13 @@ class Consumer(mqttClient: MqttClient, cluster: Cluster)
         BinarySerializer.MqttEntryManifest
       ).asInstanceOf[MqttEntry]
 
-      val statement = QueryBuilder.update(conf.cassandra.table)
-        .`with`(QueryBuilder.set("value", entry.value))
-        .and(QueryBuilder.set("anomaly", entry.anomaly))
-        .where(QueryBuilder.eq("sensor", entry.sensor))
-        .and(QueryBuilder.eq("ts", System.currentTimeMillis))
+      val statement = update(conf.cassandra.table).set(
+          Assignment.setColumn("value", literal(entry.value)),
+          Assignment.setColumn("anomaly", literal(entry.anomaly)),
+        ).where(
+          Relation.column("sensor").isEqualTo(literal(entry.sensor)),
+          Relation.column("ts").isEqualTo(literal(java.time.Instant.now()))
+        ).build()
       session.execute(statement)
   }
 }

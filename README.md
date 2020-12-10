@@ -75,7 +75,7 @@ If the repositories do not contain SBT, then follow the
 [Installing sbt on Linux](http://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html)
 instructions. For example, you may use pacman for ArchLinux:
 
-    $ pacman -S git scala sbt
+    $ pacman -S --needed git scala sbt
 
 To verify the installations, please clone the project and use SBT and Scala script in a dry-run mode:
 

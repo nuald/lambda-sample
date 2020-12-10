@@ -7,10 +7,13 @@ import akka.util.Timeout
 import lib._
 import redis.RedisClient
 import smile.classification.{RandomForest, randomForest}
+import smile.data._
+import smile.data.formula._
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
+import collection.JavaConverters._
 
 object Trainer {
   def props(cassandraClient: CassandraClient, redisClient: RedisClient)
@@ -55,14 +58,11 @@ class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
   }
 
   private[this] def createFittedModel(entries: Iterable[Entry]): Try[RandomForest] = {
-    // Features are multi-dimensional, labels are integers
-    val mapping = (x: Entry) => (Array(x.value), x.anomaly)
-
-    // Extract the features and the labels
-    val (features, labels) = entries.map(mapping).unzip
+    val data = DataFrame.of(entries.toList.asJava, classOf[Entry])
+    val formula = "anomaly" ~ "value"
 
     // Fit the model
-    Try(randomForest(features.toArray, labels.toArray))
+    Try(randomForest(formula, data))
   }
 
   system.scheduler.scheduleOnce(conf.fullAnalyzer.period.millis) {

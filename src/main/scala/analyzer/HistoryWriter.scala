@@ -1,14 +1,14 @@
 package analyzer
 
-import java.util.Date
-
 import akka.actor._
 import akka.pattern.ask
 import akka.event.LoggingAdapter
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import com.datastax.driver.core.Cluster
-import com.datastax.driver.core.querybuilder.QueryBuilder
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder._
+import com.datastax.oss.driver.api.querybuilder.update._
+import com.datastax.oss.driver.api.querybuilder.relation._
 import lib._
 import redis.RedisClient
 
@@ -18,30 +18,27 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object HistoryWriter {
-  def props(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
+  def props(session: CqlSession, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
            (implicit materializer: ActorMaterializer) =
-    Props(classOf[HistoryWriter], cluster, redisClient, analyzerOpt, materializer)
+    Props(classOf[HistoryWriter], session, redisClient, analyzerOpt, materializer)
 
   private final case object Tick
 }
 
-class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
+class HistoryWriter(session: CqlSession, redisClient: RedisClient, analyzerOpt: Option[ActorRef])
                    (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging {
   import HistoryWriter._
 
   private[this] val conf = Config.get
-  private[this] val session = cluster.connect(conf.cassandra.keyspace)
   private[this] var analyzers = analyzerOpt.toIndexedSeq
   private[this] var jobCounter = 0
-  private[this] val lastTimestamp = mutable.Map[String, Date]()
+  private[this] val lastTimestamp = mutable.Map[String, java.time.Instant]()
 
   implicit val system: ActorSystem = context.system
   implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val logger: LoggingAdapter = log
   implicit val timeout: Timeout = Timeout(conf.historyWriter.timeout.millis)
-
-  override def postStop(): Unit = session.close()
 
   override def receive: Receive = {
     case Tick =>
@@ -93,12 +90,14 @@ class HistoryWriter(cluster: Cluster, redisClient: RedisClient, analyzerOpt: Opt
         ).asInstanceOf[SensorMeta]
 
         val notUpdatedYet = lastTimestamp.contains(sensor) && lastTimestamp(sensor) == meta.ts
-        val statement = QueryBuilder.update(conf.historyWriter.table)
-          .`with`(QueryBuilder.set("fast_anomaly", meta.fastAnomaly))
-          .and(QueryBuilder.set("full_anomaly", meta.fullAnomaly))
-          .and(QueryBuilder.set("avg_anomaly", meta.avgAnomaly))
-          .where(QueryBuilder.eq("sensor", meta.name))
-          .and(QueryBuilder.eq("ts", meta.ts))
+        val statement = update(conf.historyWriter.table).set(
+          Assignment.setColumn("fast_anomaly", literal(meta.fastAnomaly)),
+          Assignment.setColumn("full_anomaly", literal(meta.fullAnomaly)),
+          Assignment.setColumn("avg_anomaly", literal(meta.avgAnomaly))
+        ).where(
+          Relation.column("sensor").isEqualTo(literal(meta.name)),
+          Relation.column("ts").isEqualTo(literal(meta.ts))
+        ).build()
         session.execute(statement)
 
         lastTimestamp(sensor) = meta.ts
