@@ -26,8 +26,15 @@ class EntriesFixture {
     // Get the sensor name for further analysis
     val name = l.head.sensor
 
-    val data = DataFrame.of(l.filter(_.sensor == name).asJava, classOf[Row])
-    val formula = "V4" ~ "V3"
+    val data = DataFrame.of(
+      l.filter(_.sensor == name)
+        .map(Tuple.of(
+          Array(_.value, _.anomaly),
+          DataTypes.struct(
+            new StructField("value", DataTypes.DoubleType),
+            new StructField("anomaly", DataTypes.IntType)))
+          .asJava))
+    val formula = "anomaly" ~ "value"
     (data, formula)
   }
 
