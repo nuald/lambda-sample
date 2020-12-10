@@ -5,9 +5,11 @@ import akka.event.LoggingAdapter
 import akka.util.Timeout
 import lib._
 import redis.RedisClient
+
 import smile.classification.{RandomForest, randomForest}
 import smile.data._
 import smile.data.formula._
+import smile.data.`type`._
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -55,7 +57,16 @@ class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
   }
 
   private[this] def createFittedModel(entries: Iterable[Entry]): Try[RandomForest] = {
-    val data = DataFrame.of(entries.toList.asJava, classOf[Entry])
+    val data = DataFrame.of(
+      entries.toList
+        .map(row => Tuple.of(
+          Array(
+            row.value.asInstanceOf[AnyRef],
+            row.anomaly.asInstanceOf[AnyRef]),
+          DataTypes.struct(
+            new StructField("value", DataTypes.DoubleType),
+            new StructField("anomaly", DataTypes.IntegerType))))
+          .asJava)
     val formula = "anomaly" ~ "value"
 
     // Fit the model

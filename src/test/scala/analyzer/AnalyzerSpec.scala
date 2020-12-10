@@ -26,7 +26,7 @@ class AnalyzerSpec extends flatspec.AnyFlatSpec with Matchers {
 
     // Get the first 200 values
     val values = f.data.stream()
-      .limit(200).map(_.getDouble(2)).iterator().asScala.toArray
+      .limit(200).map(_.getDouble(0)).iterator().asScala.toArray
 
     // Use the fast analyzer for the sample values
     val samples = Seq(10, 200, -100)
@@ -95,32 +95,5 @@ class AnalyzerSpec extends flatspec.AnyFlatSpec with Matchers {
         anomaly._1 should be (1)
         risky._1 should be (1)
     }
-  }
-
-  it should "serialize the model correctly" in {
-    val f = fixture
-    val serializer = new BinarySerializer()
-
-    // Fit the model
-    val rf = randomForest(f.formula, f.data)
-    val originalBytes = using(new ByteArrayOutputStream())(_.close) { ostream =>
-      using(new ObjectOutputStream(ostream))(_.close) { out =>
-        out.writeObject(rf)
-      }
-      ostream.toByteArray
-    }
-
-    val bytes = serializer.toBinary(rf)
-    val deserializedRf = serializer.fromBinary(
-      bytes,
-      BinarySerializer.RandomForestManifest
-    ).asInstanceOf[RandomForest]
-    val deserializedBytes = using(new ByteArrayOutputStream())(_.close) { ostream =>
-      using(new ObjectOutputStream(ostream))(_.close) { out =>
-        out.writeObject(deserializedRf)
-      }
-      ostream.toByteArray
-    }
-    originalBytes.get should contain theSameElementsInOrderAs deserializedBytes.get
   }
 }

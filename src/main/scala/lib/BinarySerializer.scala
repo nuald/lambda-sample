@@ -7,6 +7,7 @@ import akka.serialization.SerializerWithStringManifest
 import analyzer._
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import mqtt.Producer.MqttEntry
@@ -35,6 +36,7 @@ class BinarySerializer extends SerializerWithStringManifest {
 
   private[this] val mapper = new ObjectMapper(new SmileFactory()) with ScalaObjectMapper
   mapper.registerModule(DefaultScalaModule)
+  mapper.registerModule(new JavaTimeModule())
 
   implicit val logger: LoggingAdapter = akka.event.NoLogging
 

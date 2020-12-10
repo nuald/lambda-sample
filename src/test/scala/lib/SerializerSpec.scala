@@ -18,6 +18,13 @@ class SerializerSpec extends flatspec.AnyFlatSpec with Matchers {
 
   private[this] def fixture = EntriesFixture()
 
+  implicit val randomForestEq: Equality[RandomForest] =
+    (a: RandomForest, b: Any) => b match {
+      case p: RandomForest =>
+        a.trees().zip(p.trees()).forall(x => x._1.toString() === x._2.toString())
+      case _ => false
+    }
+
   "The binary serializer" should "process Analyze object correctly" in {
     val obj = Analyze
     val bytes = serializer.toBinary(obj)

@@ -2,6 +2,8 @@ package lib
 
 import smile.data._
 import smile.data.formula._
+import smile.data.`type`._
+
 import scala.jdk.CollectionConverters._
 
 object EntriesFixture {
@@ -28,12 +30,14 @@ class EntriesFixture {
 
     val data = DataFrame.of(
       l.filter(_.sensor == name)
-        .map(Tuple.of(
-          Array(_.value, _.anomaly),
+        .map(row => Tuple.of(
+          Array(
+            row.value.asInstanceOf[AnyRef],
+            row.anomaly.asInstanceOf[AnyRef]),
           DataTypes.struct(
             new StructField("value", DataTypes.DoubleType),
-            new StructField("anomaly", DataTypes.IntType)))
-          .asJava))
+            new StructField("anomaly", DataTypes.IntegerType))))
+          .asJava)
     val formula = "anomaly" ~ "value"
     (data, formula)
   }
