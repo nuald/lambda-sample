@@ -47,8 +47,18 @@ Please install:
 
  - [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker
  - [Apache Cassandra](http://cassandra.apache.org/) NoSQL database
+ - [Python 2](https://www.python.org/), required by Cassandra
  - [Redis](https://redis.io/) in-memory data store
  - [SBT](http://www.scala-sbt.org/) build tool
+
+**Linux** Please use the package manager shipped with the distribution.
+For example, you may use pacman for ArchLinux (please note that Cassandra requires Java 8):
+
+    $ pacman -S --needed mosquitto redis sbt python2
+    $ git clone https://aur.archlinux.org/cassandra.git
+    $ cd cassandra
+    $ makepkg -si
+    $ archlinux-java set java-8-openjdk/jre
 
 Optionally you may install:
 
@@ -56,6 +66,11 @@ Optionally you may install:
  the Decision Tree visualization in the sample REPL session)
  - [Hey](https://github.com/rakyll/hey) HTTP load generator (used for the performance tests)
  - [Scala](https://www.scala-lang.org/download/) shell (used for [the helper script](start.sc) for clustering)
+
+**Linux** Please use the package manager shipped with the distribution.
+For example, you may use pacman for ArchLinux:
+
+    $ pacman -S --needed graphviz hey scala
 
 ### Cluster client requirements
 
@@ -92,17 +107,17 @@ Run the spec-based unit tests to ensure that the code works correctly:
 
     $ sbt test
 
-Configure the Cassandra data store:
-
-    $ cqlsh -f resources/cassandra/schema.sql
-
-*NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`.*
-
 Run the servers:
 
     $ mosquitto
     $ cassandra -f
     $ redis-server
+
+Configure a Cassandra data store:
+
+    $ cqlsh -f resources/cassandra/schema.sql
+
+*NOTE: For dropping the keyspace please use: `$ cqlsh -e "drop keyspace sandbox;"`.*
 
 Run the system (for the convenience, all microservices are packaged into the one system):
 

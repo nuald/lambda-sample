@@ -52,6 +52,7 @@ object Main extends App {
     val session = CqlSession.builder()
       .addContactPoint(new InetSocketAddress(contactPoint, 9042))
       .withKeyspace(conf.cassandra.keyspace)
+      .withLocalDatacenter("datacenter1")
       .build()
     try {
       val clusterName = session.getMetadata.getClusterName

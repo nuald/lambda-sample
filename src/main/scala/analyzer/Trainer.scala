@@ -66,7 +66,7 @@ class Trainer(cassandraClient: CassandraClient, redisClient: RedisClient)
           DataTypes.struct(
             new StructField("value", DataTypes.DoubleType),
             new StructField("anomaly", DataTypes.IntegerType))))
-          .asJava)
+        .asJava)
     val formula = "anomaly" ~ "value"
 
     // Fit the model
