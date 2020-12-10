@@ -1,54 +1,18 @@
 package lib
 
-import java.util.Date
-
-import analyzer.ML.{DecisionTree, DecisionTreeNode, RandomForest, RandomForestTree}
 import analyzer._
 import lib.BinarySerializer._
-import mqtt.Producer.MqttEntry
-import org.scalactic.Equality
-import org.scalatest.{FlatSpec, Matchers}
-import smile.classification.randomForest
 import lib.EntriesFixture.Precision
+import mqtt.Producer.MqttEntry
 
-class SerializerSpec extends FlatSpec with Matchers {
+import org.scalactic.Equality
 
-  implicit val randomForestEq: Equality[RandomForest] =
-    (a: RandomForest, b: Any) => b match {
-      case p: RandomForest =>
-        a.trees.zip(p.trees).forall(x => x._1 === x._2) && a.k == p.k
-      case _ => false
-    }
+import org.scalatest._
+import matchers.should._
 
-  implicit val randomForestTreeEq: Equality[RandomForestTree] =
-    (a: RandomForestTree, b: Any) => b match {
-      case p: RandomForestTree =>
-        a.tree === p.tree && a.weight === p.weight +- Precision
-      case _ => false
-    }
+import smile.classification.{RandomForest, randomForest}
 
-  implicit val decisionTreeEq: Equality[DecisionTree] =
-    (a: DecisionTree, b: Any) => b match {
-      case p: DecisionTree =>
-        a.attributes.zip(p.attributes).forall(x => x._1 === x._2) &&
-          a.root === p.root
-      case _ => false
-    }
-
-  implicit val decisionTreeNodeEq: Equality[DecisionTreeNode] =
-    (a: DecisionTreeNode, b: Any) => b match {
-      case p: DecisionTreeNode =>
-        val posterioriEq = a.posteriori.zip(p.posteriori).forall(x => x._1 === x._2 +- Precision)
-        val splitFeatureEq = a.splitFeature == p.splitFeature
-        val splitValueEq = (a.splitValue.isNaN && p.splitValue.isNaN) ||
-            a.splitValue === p.splitValue +- Precision
-        val trueChildEq = (a.trueChild.isEmpty && p.trueChild.isEmpty) ||
-          a.trueChild.get === p.trueChild.get
-        val falseChildEq = (a.falseChild.isEmpty && p.falseChild.isEmpty) ||
-          a.falseChild.get === p.falseChild.get
-        posterioriEq && splitFeatureEq && splitValueEq && trueChildEq && falseChildEq
-      case _ => false
-    }
+class SerializerSpec extends flatspec.AnyFlatSpec with Matchers {
 
   val serializer = new BinarySerializer()
 
@@ -84,17 +48,15 @@ class SerializerSpec extends FlatSpec with Matchers {
 
   it should "process RandomForest object correctly" in {
     val f = fixture
-    val obj = randomForest(f.features.toArray, f.labels.toArray, ntrees = 1)
-    val mlObj = RandomForest(obj)
+    val obj = randomForest(f.formula, f.data, ntrees = 1)
     val bytes = serializer.toBinary(obj)
     val ref = serializer.fromBinary(bytes, RandomForestManifest)
       .asInstanceOf[smile.classification.RandomForest]
-    val mlRef = RandomForest(ref)
-    mlObj should equal (mlRef)
+    obj should equal (ref)
   }
 
   it should "process SensorMeta object correctly" in {
-    val obj = SensorMeta("", new Date(), 0, 0, 0)
+    val obj = SensorMeta("", java.time.Instant.now(), 0, 0, 0)
     val bytes = serializer.toBinary(obj)
     val ref = serializer.fromBinary(bytes, SensorMetaManifest)
     obj should be (ref)

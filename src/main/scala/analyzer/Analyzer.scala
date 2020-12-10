@@ -1,19 +1,21 @@
 package analyzer
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props, RootActorPath}
-import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
+import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.event.LoggingAdapter
 import akka.pattern.pipe
 import akka.util.Timeout
+
 import lib.{BinarySerializer, CassandraClient, Config, Entry}
 import redis.RedisClient
+
 import smile.classification.RandomForest
 import smile.data.Tuple
 import smile.data.`type`._
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 case object Analyze
 case object StressAnalyze

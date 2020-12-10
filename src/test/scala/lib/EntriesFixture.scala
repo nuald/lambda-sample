@@ -1,5 +1,9 @@
 package lib
 
+import smile.data._
+import smile.data.formula._
+import scala.jdk.CollectionConverters._
+
 object EntriesFixture {
   val Precision = 0.0002
 
@@ -12,7 +16,7 @@ class EntriesFixture {
 
   private def getData = {
     // Read the values from the CSV file
-    val iter = scala.io.Source.fromResource("entries.csv").getLines
+    val iter = scala.io.Source.fromResource("entries.csv").getLines()
 
     // Get the data
     val l = iter.map(_.split(",") match {
@@ -22,12 +26,10 @@ class EntriesFixture {
     // Get the sensor name for further analysis
     val name = l.head.sensor
 
-    // Features are multi-dimensional, labels are integers
-    val mapping = (x: Row) => (Array(x.value), x.anomaly)
-
-    // Extract the features and the labels for the given sensor
-    l.filter(_.sensor == name).map(mapping).unzip
+    val data = DataFrame.of(l.filter(_.sensor == name).asJava, classOf[Row])
+    val formula = "V4" ~ "V3"
+    (data, formula)
   }
 
-  val (features, labels) = getData
+  val (data, formula) = getData
 }

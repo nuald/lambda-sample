@@ -1,16 +1,22 @@
 package analyzer
 
 import akka.event.LoggingAdapter
+
+import java.io._
+import lib.Common.using
+import lib.{BinarySerializer, EntriesFixture}
+
 import org.scalatest._
+import matchers.should._
 
 import scala.language.postfixOps
-import lib.Common.using
-import java.io._
+import scala.jdk.CollectionConverters._
 
-import lib.{BinarySerializer, EntriesFixture}
 import smile.classification.{RandomForest, randomForest}
+import smile.data.Tuple
+import smile.data.`type`._
 
-class AnalyzerSpec extends FlatSpec with Matchers {
+class AnalyzerSpec extends flatspec.AnyFlatSpec with Matchers {
   implicit val logger: LoggingAdapter = akka.event.NoLogging
 
   private[this] def fixture = EntriesFixture()
@@ -19,7 +25,8 @@ class AnalyzerSpec extends FlatSpec with Matchers {
     val f = fixture
 
     // Get the first 200 values
-    val values = f.features.flatten.take(200)
+    val values = f.data.stream()
+      .limit(200).map(_.getDouble(2)).iterator().asScala.toArray
 
     // Use the fast analyzer for the sample values
     val samples = Seq(10, 200, -100)
@@ -35,7 +42,7 @@ class AnalyzerSpec extends FlatSpec with Matchers {
     val f = fixture
 
     // Fit the model
-    val rf = randomForest(f.features.toArray, f.labels.toArray)
+    val rf = randomForest(f.formula, f.data)
 
     // Use the full analyzer for the sample values
     val samples = Seq(10, 200, -100)
@@ -51,7 +58,7 @@ class AnalyzerSpec extends FlatSpec with Matchers {
     val f = fixture
 
     // Fit the model
-    val originalRf = randomForest(f.features.toArray, f.labels.toArray)
+    val originalRf = randomForest(f.formula, f.data)
 
     // Set up the implicit for the usage() function
     implicit val logger: LoggingAdapter = akka.event.NoLogging
@@ -72,11 +79,16 @@ class AnalyzerSpec extends FlatSpec with Matchers {
     val rf = futureRf.get
 
     // Use the loaded model for the sample values
-    val samples = Seq(10, 200, -100)
+    val samples = Seq(10.0, 200.0, -100.0)
     samples.map { sample =>
-      val probability = new Array[Double](2)
-      val prediction = rf.predict(Array(sample), probability)
-      (prediction, probability)
+      val posteriori = new Array[Double](2)
+      val prediction = rf.predict(
+        Tuple.of(
+          Array(sample),
+          DataTypes.struct(
+            new StructField("value", DataTypes.DoubleType))),
+        posteriori)
+      (prediction, posteriori)
     } match {
       case Seq(notAnomaly, anomaly, risky) =>
         notAnomaly._1 should be (0)
@@ -90,7 +102,7 @@ class AnalyzerSpec extends FlatSpec with Matchers {
     val serializer = new BinarySerializer()
 
     // Fit the model
-    val rf = randomForest(f.features.toArray, f.labels.toArray)
+    val rf = randomForest(f.formula, f.data)
     val originalBytes = using(new ByteArrayOutputStream())(_.close) { ostream =>
       using(new ObjectOutputStream(ostream))(_.close) { out =>
         out.writeObject(rf)

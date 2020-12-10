@@ -3,9 +3,11 @@ package mqtt
 import akka.event.LoggingAdapter
 import lib.BinarySerializer
 import mqtt.Producer.MqttEntry
-import org.scalatest._
 
-class EntrySpec extends FlatSpec with Matchers {
+import org.scalatest._
+import matchers.should._
+
+class EntrySpec extends flatspec.AnyFlatSpec with Matchers {
   implicit val logger: LoggingAdapter = akka.event.NoLogging
 
   "The Entry object" should "be sealed into the same byte array given the same args" in {
