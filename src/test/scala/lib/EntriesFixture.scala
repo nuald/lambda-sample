@@ -28,6 +28,7 @@ class EntriesFixture {
     // Get the sensor name for further analysis
     val name = l.head.sensor
 
+    // Prepare data frame for the given sensor
     val data = DataFrame.of(
       l.filter(_.sensor == name)
         .map(row => Tuple.of(
@@ -37,7 +38,9 @@ class EntriesFixture {
           DataTypes.struct(
             new StructField("value", DataTypes.DoubleType),
             new StructField("anomaly", DataTypes.IntegerType))))
-          .asJava)
+        .asJava)
+
+    // Declare formula for the features and the labels
     val formula = "anomaly" ~ "value"
     (data, formula)
   }

@@ -165,11 +165,17 @@ Dump the entries into the CSV file:
 Read the CSV file and extract the features and the labels for the particular sensor:
 
 ```scala
+import smile.data._
+import smile.data.formula._
+import smile.data.`type`._
+
+import scala.jdk.CollectionConverters._
+
 // Declare the class to get better visibility on the data
 case class Row(sensor: String, ts: String, value: Double, anomaly: Int)
 
 // Read the values from the CSV file
-val iter = scala.io.Source.fromFile("list.csv").getLines
+val iter = scala.io.Source.fromFile("list.csv").getLines()
 
 // Get the data
 val l = iter.map(_.split(",") match {
@@ -179,11 +185,20 @@ val l = iter.map(_.split(",") match {
 // Get the sensor name for further analysis
 val name = l.head.sensor
 
-// Features are multi-dimensional, labels are integers
-val mapping = (x: Row) => (Array(x.value), x.anomaly)
+// Prepare data frame for the given sensor
+val data = DataFrame.of(
+  l.filter(_.sensor == name)
+    .map(row => Tuple.of(
+      Array(
+        row.value.asInstanceOf[AnyRef],
+        row.anomaly.asInstanceOf[AnyRef]),
+      DataTypes.struct(
+        new StructField("value", DataTypes.DoubleType),
+        new StructField("anomaly", DataTypes.IntegerType))))
+    .asJava)
 
-// Extract the features and the labels for the given sensor
-val (features, labels) = l.filter(_.sensor == name).map(mapping).unzip
+// Declare formula for the features and the labels
+val formula = "anomaly" ~ "value"
 
 ```
 
@@ -193,7 +208,8 @@ Fast analysis (labels are ignored because we don't use any training here):
 
 ```scala
 // Get the first 200 values
-val values = features.flatten.take(200)
+val values = data.stream()
+  .limit(200).map(_.getDouble(0)).iterator().asScala.toArray
 
 // Use the fast analyzer for the sample values
 val samples = Seq(10, 200, -100)
@@ -214,10 +230,10 @@ import scala.sys.process._
 import smile.classification.randomForest
 
 // Fit the model
-val rf = randomForest(features.toArray, labels.toArray)
+val rf = randomForest(formula, data)
 
 // Get the dot diagram for a sample tree
-val desc = rf.getTrees()(0).dot
+val desc = rf.trees()(0).dot
 
 // View the diagram (macOS example)
 s"echo $desc" #| "dot -Tpng" #| "open -a Preview -f" !
@@ -251,11 +267,16 @@ val futureRf = using(new ObjectInputStream(new FileInputStream("target/rf.bin"))
 val rf = futureRf.get
 
 // Use the loaded model for the sample values
-val samples = Seq(10, 200, -100)
+val samples = Seq(10.0, 200.0, -100.0)
 samples.map { sample =>
-  val probability = new Array[Double](2)
-  val prediction = rf.predict(Array(sample), probability)
-  (prediction, probability)
+  val posteriori = new Array[Double](2)
+  val prediction = rf.predict(
+    Tuple.of(
+      Array(sample),
+      DataTypes.struct(
+        new StructField("value", DataTypes.DoubleType))),
+    posteriori)
+  (prediction, posteriori)
 }
 
 ```
@@ -278,7 +299,7 @@ Verify the history of detecting anomalies using CQL:
     $ cqlsh -e "select * from sandbox.analysis limit 10;"
 
 In most cases it's better to use specialized solutions for clustering,
-for example, [Kubernetes](https://developer.lightbend.com/guides/akka-cluster-kubernetes-k8s-deploy/).
+for example, [Kubernetes](https://doc.akka.io/docs/akka-management/current/kubernetes-deployment/forming-a-cluster.html).
 However, in the sample project the server and clients are configured manually
 for the demonstration purposes.
 

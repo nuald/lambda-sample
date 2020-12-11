@@ -5,13 +5,15 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import org.stringtemplate.v4._
-import org.eclipse.paho.client.mqttv3._
 import lib._
+import org.eclipse.paho.client.mqttv3._
+import org.stringtemplate.v4._
 
-import scala.concurrent.duration._
+import scala.beans.BeanProperty
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.io.Source
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 object Producer {
@@ -19,7 +21,9 @@ object Producer {
     Props(classOf[Producer], mqttClient)
 
   final case class MqttEntry(sensor: String, value: Double, anomaly: Int)
-  final case class SensorModel(name: String, isNormal: Boolean)
+  final case class SensorModel(
+    @BeanProperty name: String,
+    @BeanProperty isNormal: Boolean)
 
   private final case object Tick
 }
@@ -90,7 +94,7 @@ class Producer(mqttClient: MqttClient)
           get {
             val src = Source.fromFile("resources/producer/index.html").mkString
             val model = sensors.map(name => SensorModel(name, state(name) == "normal"))
-            val template = new ST(src, '$', '$').add("sensors", model)
+            val template = new ST(src, '$', '$').add("sensors", model.asJava)
             val dst = template.render()
             complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, dst))
           }
