@@ -99,7 +99,7 @@ To verify the installations, please clone the project and use SBT and Scala scri
     $ sbt compile
     $ scala start.sc client --dry-run
 
-It should create the target jar (`target/scala-2.12` directory) and configurations (`target/env` directory).
+It should create the target jar (`target/scala-2.13` directory) and configurations (`target/env` directory).
 
 ## Usage
 
