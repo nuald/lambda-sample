@@ -1,15 +1,19 @@
 package lib
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
-
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  ObjectInputStream,
+  ObjectOutputStream
+}
 import akka.event.LoggingAdapter
 import akka.serialization.SerializerWithStringManifest
 import analyzer._
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.dataformat.smile.SmileFactory
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
 import mqtt.Producer.MqttEntry
 import smile.classification.RandomForest
 
@@ -34,9 +38,10 @@ class BinarySerializer extends SerializerWithStringManifest {
   import BinarySerializer._
   import lib.Common.using
 
-  private[this] val mapper = new ObjectMapper(new SmileFactory()) with ScalaObjectMapper
-  mapper.registerModule(DefaultScalaModule)
-  mapper.registerModule(new JavaTimeModule())
+  private[this] val mapper = JsonMapper.builder()
+    .addModule(DefaultScalaModule)
+    .addModule(new JavaTimeModule())
+    .build()
 
   implicit val logger: LoggingAdapter = akka.event.NoLogging
 
@@ -58,9 +63,12 @@ class BinarySerializer extends SerializerWithStringManifest {
         case AnalyzeManifest => Analyze
         case StressAnalyzeManifest => StressAnalyze
         case RegistrationManifest => Registration
-        case AllMetaManifest => mapper.readValue[AllMeta](bytes)
-        case SensorMetaManifest => mapper.readValue[SensorMeta](bytes)
-        case MqttEntryManifest => mapper.readValue[MqttEntry](bytes)
+        case AllMetaManifest => mapper.readValue(bytes,
+          new TypeReference[AllMeta]{})
+        case SensorMetaManifest => mapper.readValue(bytes,
+          new TypeReference[SensorMeta]{})
+        case MqttEntryManifest => mapper.readValue(bytes,
+          new TypeReference[MqttEntry]{})
       }
     }
   }
